@@ -1,15 +1,26 @@
 import type { Aircraft } from '../types.ts'
 import { altColor, callsignOf, dash, fmtInt, fmtVsLong, pad3, progress } from './format.ts'
 
+const utcHm = (s: number) => new Date(s * 1000).toISOString().slice(11, 16)
+
 interface Props {
   aircraft: Aircraft | null
   airportCode: string
   follow: boolean
+  /** Track history start (unix s); null = unavailable; undefined = still loading (line hidden). */
+  trackStart?: number | null
   onClose: () => void
   onFollow: (on: boolean) => void
 }
 
-export function DetailsCard({ aircraft: a, airportCode, follow, onClose, onFollow }: Props) {
+export function DetailsCard({
+  aircraft: a,
+  airportCode,
+  follow,
+  trackStart,
+  onClose,
+  onFollow,
+}: Props) {
   if (!a) {
     return (
       <section className="panel details">
@@ -70,6 +81,11 @@ export function DetailsCard({ aircraft: a, airportCode, follow, onClose, onFollo
           </div>
         ))}
       </div>
+      {trackStart !== undefined && (
+        <div className="track-note">
+          {trackStart === null ? 'TRACK · unavailable' : `TRACK · since ${utcHm(trackStart)} UTC`}
+        </div>
+      )}
       <button className={'follow' + (follow ? ' on' : '')} onClick={() => onFollow(!follow)}>
         {follow ? 'FOLLOWING · CLICK TO RELEASE' : 'FOLLOW WITH CAMERA'}
       </button>

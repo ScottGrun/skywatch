@@ -57,6 +57,12 @@ export default {
       })
     }
 
+    const tr = /^\/api\/track\/([0-9a-fA-F]{6})$/.exec(path)
+    if (tr) {
+      const r = await openSky(env).getTrack(tr[1].toLowerCase())
+      return json(r.body, r.status, { 'cache-control': 'no-store' })
+    }
+
     const rt = /^\/api\/route\/([A-Za-z0-9]{2,10})$/.exec(path)
     if (rt) {
       return json(await adsbdb.route(rt[1].toUpperCase()), 200, {

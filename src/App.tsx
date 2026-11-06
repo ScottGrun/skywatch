@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Aircraft, Airport, FeedStatus, FlightScene, ViewPreset } from './types.ts'
 import { loadAirports } from './data/airports.ts'
+import { watchTrack } from './data/track.ts'
 import { createTraffic, type TrafficHandle } from './data/traffic.ts'
 import { createFlightScene, mapAttribution } from './scene'
 import {
@@ -46,6 +47,7 @@ export function App() {
   const [airport, setAirport] = useState<Airport | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [follow, setFollow] = useState(false)
+  const [trackInfo, setTrackInfo] = useState<{ id: string; start: number | null } | null>(null)
   const [status, setStatus] = useState<FeedStatus>('connecting')
   const [aircraft, setAircraft] = useState<Aircraft[]>([])
   const [filter, setFilter] = useState<FilterState>(() => {
@@ -148,6 +150,19 @@ export function App() {
 
   useEffect(() => sceneRef.current?.select(selectedId), [selectedId])
   useEffect(() => sceneRef.current?.setFollow(follow), [follow])
+  // Real track history for the selected aircraft (refetched every 60 s while selected).
+  useEffect(() => {
+    if (!selectedId) return
+    const id = selectedId
+    const stop = watchTrack(id, (d) => {
+      sceneRef.current?.setHistory(id, d ? d.path : null)
+      setTrackInfo({ id, start: d ? d.path[0].t : null })
+    })
+    return () => {
+      stop()
+      sceneRef.current?.setHistory(id, null)
+    }
+  }, [selectedId, airport])
   useEffect(() => {
     if (!selectedId) setFollow(false)
   }, [selectedId])
@@ -186,6 +201,7 @@ export function App() {
         aircraft={selected}
         airportCode={airport ? airport.iata || airport.icao : ''}
         follow={follow}
+        trackStart={trackInfo?.id === selectedId ? trackInfo.start : undefined}
         onClose={() => setSelectedId(null)}
         onFollow={setFollow}
       />

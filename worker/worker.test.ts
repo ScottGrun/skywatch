@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createOpenSkyClient, mapStates, roundBbox, TOKEN_URL } from './opensky.ts'
+import { mapTrack } from './track.ts'
 import { createAdsbdb, mapAircraft, mapRoute } from './adsbdb.ts'
 
 const BBOX = { lamin: 47.69, lomin: -125.18, lamax: 50.71, lomax: -121.18 }
@@ -175,5 +176,70 @@ describe('adsbdb', () => {
     await a.aircraft('abc123')
     expect(f).toHaveBeenCalledTimes(1)
     expect(await a.route('ACA1')).toEqual({ origin: null, dest: null })
+  })
+})
+
+describe('tracks', () => {
+  const raw = {
+    icao24: 'abc123',
+    startTime: 100,
+    endTime: 400,
+    path: [
+      [100, 49, -123, 1000, 90, false],
+      [200, null, -123, 1000, 90, false],
+      [300, 49.5, -122.5, null, 90, true],
+      'junk',
+    ],
+  }
+  it('maps waypoints, drops incomplete rows, converts m to ft', () => {
+    expect(mapTrack('abc123', raw)).toEqual({
+      icao24: 'abc123',
+      startTime: 100,
+      endTime: 400,
+      path: [
+        { t: 100, lat: 49, lon: -123, altFt: 3281, onGround: false },
+        { t: 300, lat: 49.5, lon: -122.5, altFt: 0, onGround: true },
+      ],
+    })
+    expect(mapTrack('x', null).path).toEqual([])
+  })
+  it('queries by icao24 with time=0, caches 60 s, 404 gives empty path', async () => {
+    let t = 0
+    const f = vi.fn(async () => ok(raw))
+    const c = createOpenSkyClient({ fetch: f, now: () => t })
+    expect((await c.getTrack('abc123')).status).toBe(200)
+    expect(String((f.mock.calls[0] as unknown[])[0])).toContain('icao24=abc123&time=0')
+    t = 59_000
+    await c.getTrack('abc123')
+    expect(f).toHaveBeenCalledTimes(1)
+    t = 61_000
+    await c.getTrack('abc123')
+    expect(f).toHaveBeenCalledTimes(2)
+    const nf = createOpenSkyClient({
+      fetch: vi.fn(async () => new Response('', { status: 404 })),
+      now: () => 0,
+    })
+    const r = await nf.getTrack('zzz111')
+    expect(r.status).toBe(200)
+    expect((r.body as { path: unknown[] }).path).toEqual([])
+  })
+  it('uses bearer token and backs off on 429', async () => {
+    let t = 0
+    const f = vi.fn(async (url: string, _init?: RequestInit) => {
+      if (url === TOKEN_URL) return ok({ access_token: 'tok', expires_in: 300 })
+      return new Response('', {
+        status: 429,
+        headers: { 'X-Rate-Limit-Retry-After-Seconds': '30' },
+      })
+    })
+    const c = createOpenSkyClient({ fetch: f, now: () => t, clientId: 'i', clientSecret: 's' })
+    expect((await c.getTrack('abc123')).status).toBe(503)
+    expect(f.mock.calls.find((x) => x[0] !== TOKEN_URL)![1]!.headers).toEqual({
+      authorization: 'Bearer tok',
+    })
+    t = 10_000
+    const n = f.mock.calls.length
+    await c.getTrack('abc123')
+    expect(f.mock.calls.length).toBe(n)
   })
 })

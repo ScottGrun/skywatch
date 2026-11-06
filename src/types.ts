@@ -76,6 +76,13 @@ export interface TrafficSource {
   subscribeStatus(fn: (s: FeedStatus) => void): () => void
 }
 
+/** One vertex of a real track history (already limited to what the scene needs). */
+export interface HistoryPoint {
+  lat: number
+  lon: number
+  altFt: number
+}
+
 export type ViewPreset = 'overview' | 'top' | 'side'
 
 /** Imperative scene handle. Implemented in src/scene/createFlightScene.ts. */
@@ -84,6 +91,8 @@ export interface FlightScene {
   setTraffic(src: TrafficSource): void
   select(id: string | null): void
   setFollow(on: boolean): void
+  /** Real track history for the selected aircraft; ignored unless `id` is selected. null clears. */
+  setHistory(id: string, path: readonly HistoryPoint[] | null): void
   /** Hide aircraft failing `pred` (no mesh/label/trail/ring, not pickable). null shows all. */
   setFilter(pred: ((a: Aircraft) => boolean) | null): void
   view(preset: ViewPreset): void

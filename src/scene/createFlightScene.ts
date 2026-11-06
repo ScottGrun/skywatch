@@ -20,6 +20,7 @@ import {
 import { bindControls } from './controls'
 import { createOverlay, createStaticLabels, placeStatic, type StaticLabel } from './labels'
 import { createHover } from './hover'
+import { createHistory } from './history'
 import { createLineup } from './lineup'
 import { pickNearest } from './picking'
 import { radialFog } from './radialFog'
@@ -31,6 +32,7 @@ import { buildTiles, disposeObject } from './tiles'
 
 const NO_THRESHOLDS: RunwaysHandle['thresholds'] = []
 const EMPTY: Aircraft[] = []
+const ZERO = { lat: 0, lon: 0 }
 
 /**
  * Creates the 3D scene inside `container`. The container should be a sized element
@@ -59,6 +61,7 @@ export function createFlightScene(container: HTMLElement): FlightScene {
   const rig = new CameraRig()
   const pool = new ViewPool(scene, overlay)
   const selection = createSelection(scene)
+  const history = createHistory(scene)
   const maxAniso = renderer.capabilities.getMaxAnisotropy()
 
   let w = 1
@@ -91,6 +94,7 @@ export function createFlightScene(container: HTMLElement): FlightScene {
   function select(id: string | null): void {
     if (id === selId) return
     selId = id
+    history.set(null, ZERO, 0)
     if (!id && follow) setFollow(false)
     emitSelect()
   }
@@ -116,6 +120,7 @@ export function createFlightScene(container: HTMLElement): FlightScene {
   function setAirport(ap: Airport): void {
     airport = ap
     pool.clear()
+    history.set(null, ZERO, 0)
     clearWorld()
     world = new THREE.Group()
     buildTiles(world, ap, maxAniso)
@@ -191,6 +196,8 @@ export function createFlightScene(container: HTMLElement): FlightScene {
       runways?.thresholds ?? NO_THRESHOLDS,
     )
 
+    history.update(selAc ? (pool.active.get(selId as string) ?? null) : null)
+
     for (const v of pool.active.values()) {
       const isSel = v.id === selId
       projectToScreen(rig.camera, w, h, v.x, v.y, v.z, sp)
@@ -237,6 +244,10 @@ export function createFlightScene(container: HTMLElement): FlightScene {
     },
     select,
     setFollow,
+    setHistory(id, path) {
+      if (!airport || id !== selId) return
+      history.set(path, airport, airport.elevationFt)
+    },
     setFilter(pred) {
       filter = pred
     },
@@ -254,6 +265,7 @@ export function createFlightScene(container: HTMLElement): FlightScene {
       selFns.clear()
       folFns.clear()
       selection.dispose()
+      history.dispose()
       pool.dispose()
       clearWorld()
       disposeAircraftGeometries()

@@ -130,6 +130,11 @@
   display: block;
   height: 100%;
 }
+.track-note {
+  font: 500 9px var(--mono);
+  color: #6b7a89;
+  letter-spacing: 0.04em;
+}
 .eta {
   margin-top: 8px;
   font: 500 11px var(--mono);

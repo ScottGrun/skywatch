@@ -1,4 +1,5 @@
 import { TtlCache } from './ttlCache.ts'
+import { emptyTrack, mapTrack, TRACKS_URL, type TrackBody } from './track.ts'
 
 export const TOKEN_URL =
   'https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token'
@@ -73,6 +74,11 @@ export function roundBbox(b: Bbox): Bbox {
   return { lamin: lo(b.lamin), lomin: lo(b.lomin), lamax: hi(b.lamax), lomax: hi(b.lomax) }
 }
 
+export interface TrackResult {
+  status: number
+  body: TrackBody | { error: string }
+}
+
 export interface ClientOpts {
   fetch: FetchFn
   now?: () => number
@@ -88,6 +94,8 @@ export function createOpenSkyClient(opts: ClientOpts) {
   const pollMs = hasCreds ? 5000 : 10000
   const cache = new TtlCache<StatesBody>(ttl, 200)
   const inflight = new Map<string, Promise<StatesResult>>()
+  const trackCache = new TtlCache<TrackBody>(60_000, 100)
+  const trackInflight = new Map<string, Promise<TrackResult>>()
   let backoffUntil = 0
   let token: { value: string; exp: number } | null = null
 
@@ -152,8 +160,53 @@ export function createOpenSkyClient(opts: ClientOpts) {
     }
   }
 
+  async function loadTrack(icao24: string): Promise<TrackResult> {
+    const stale = (): TrackResult => {
+      const body = trackCache.peek(icao24)
+      return body
+        ? { status: 200, body }
+        : { status: 503, body: { error: 'rate limited, no cached data' } }
+    }
+    if (now() < backoffUntil) return stale()
+    try {
+      const tk = await getToken()
+      const res = await opts.fetch(
+        `${TRACKS_URL}?${new URLSearchParams({ icao24, time: '0' })}`,
+        tk ? { headers: { authorization: `Bearer ${tk}` } } : {},
+      )
+      if (res.status === 429) {
+        const secs = Number(res.headers.get('X-Rate-Limit-Retry-After-Seconds'))
+        backoffUntil = now() + (Number.isFinite(secs) && secs > 0 ? secs : 60) * 1000
+        return stale()
+      }
+      if (res.status === 401 || res.status === 403) token = null
+      if (res.status === 404) {
+        const body = emptyTrack(icao24)
+        trackCache.set(icao24, body, now())
+        return { status: 200, body }
+      }
+      if (!res.ok) return { status: 502, body: { error: `upstream ${res.status}` } }
+      const body = mapTrack(icao24, await res.json())
+      trackCache.set(icao24, body, now())
+      return { status: 200, body }
+    } catch {
+      return { status: 502, body: { error: 'upstream unreachable' } }
+    }
+  }
+
   return {
     pollMs,
+    /** Full track of the current flight (cached ~60 s per aircraft); upstream 404 gives an empty path. */
+    async getTrack(icao24: string): Promise<TrackResult> {
+      const fresh = trackCache.get(icao24, now())
+      if (fresh) return { status: 200, body: fresh }
+      let p = trackInflight.get(icao24)
+      if (!p) {
+        p = loadTrack(icao24).finally(() => trackInflight.delete(icao24))
+        trackInflight.set(icao24, p)
+      }
+      return p
+    },
     async getStates(bbox: Bbox): Promise<StatesResult> {
       const b = roundBbox(bbox)
       const key = `${b.lamin},${b.lomin},${b.lamax},${b.lomax}`
