@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans+Condensed:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>body{margin:0;background:#050608}a{color:#2ff0c0}a:hover{color:#ffffff}input::placeholder{color:#5b6f80}</style>
+</helmet>
+<div style="position:relative;width:100%;height:100vh;min-height:720px;background:#050608;color:#e8edf2;font-family:'IBM Plex Sans Condensed',sans-serif;overflow:hidden">
+<div ref="{{ sceneRef }}" style="position:absolute;inset:0;z-index:0;isolation:isolate"></div>
+
+<div style="position:absolute;top:20px;left:20px;right:20px;display:flex;justify-content:space-between;align-items:center;gap:20px;pointer-events:none">
+<div style="display:flex;align-items:center;gap:22px;pointer-events:auto">
+<div style="display:flex;align-items:center;gap:10px"><div style="width:10px;height:10px;background:#2ff0c0;transform:rotate(45deg)"></div><span style="font:700 14px/1 'IBM Plex Sans Condensed',sans-serif;letter-spacing:.18em;white-space:nowrap">TRACON 3D</span></div>
+
+<div style="position:relative;width:300px">
+<div style="display:flex;align-items:center;gap:10px;height:36px;padding:0 10px 0 12px;box-sizing:border-box;background:rgba(7,9,12,.88);border:1px solid {{ searchBorder }};border-radius:5px;backdrop-filter:blur(10px)">
+<span style="font:600 9px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;color:#6b7a89">ICAO</span>
+<input ref="{{ inputRef }}" value="{{ q }}" onChange="{{ onQuery }}" onFocus="{{ onFocus }}" onBlur="{{ onBlur }}" onKeyDown="{{ onKey }}" placeholder="Search ICAO, IATA or city" spellcheck="false" autocomplete="off" style="flex:1;min-width:0;height:100%;border:0;outline:0;background:transparent;color:#ffffff;font:500 13px/1 'IBM Plex Mono',monospace;letter-spacing:.04em">
+<span style="padding:3px 6px;border:1px solid #24303b;border-radius:3px;font:500 10px/1 'IBM Plex Mono',monospace;color:#6b7a89">/</span>
+</div>
+<sc-if value="{{ showResults }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;top:42px;left:0;right:0;display:flex;flex-direction:column;padding:4px;box-sizing:border-box;background:rgba(7,9,12,.96);border:1px solid #24303b;border-radius:5px;backdrop-filter:blur(10px);z-index:5">
+<sc-for list="{{ results }}" as="a" hint-placeholder-count="4">
+<div onMouseDown="{{ a.onPick }}" onMouseEnter="{{ a.onHover }}" style="display:grid;grid-template-columns:44px 34px minmax(0,1fr);gap:10px;align-items:baseline;padding:9px 10px;border-radius:3px;cursor:pointer;background:{{ a.bg }}">
+<span style="font:600 13px/1 'IBM Plex Mono',monospace;color:#ffffff">{{ a.icao }}</span>
+<span style="font:500 11px/1 'IBM Plex Mono',monospace;color:#2ff0c0">{{ a.iata }}</span>
+<span style="font:500 12px/1.2 'IBM Plex Sans Condensed',sans-serif;color:#8a98a6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ a.name }} · {{ a.city }}</span>
+</div>
+</sc-for>
+<sc-if value="{{ noResults }}" hint-placeholder-val="{{ false }}">
+<span style="padding:10px;font:500 12px/1.3 'IBM Plex Mono',monospace;color:#6b7a89">No airport matches "{{ q }}"</span>
+</sc-if>
+</div>
+</sc-if>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:4px"><span style="font:600 14px/1 'IBM Plex Sans Condensed',sans-serif;white-space:nowrap">{{ ap.name }}</span><span style="font:500 10px/1 'IBM Plex Mono',monospace;color:#6b7a89;letter-spacing:.04em;white-space:nowrap">{{ ap.icao }} · {{ ap.coords }}</span></div>
+</div>
+<div style="display:flex;align-items:center;gap:18px;pointer-events:auto;font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.06em">
+<span style="display:flex;align-items:center;gap:8px;color:#2ff0c0;white-space:nowrap"><span style="width:7px;height:7px;border-radius:50%;background:#2ff0c0;box-shadow:0 0 0 3px rgba(47,240,192,.2)"></span>LIVE · OPENSKY ADS-B</span>
+<span style="color:#8a98a6;white-space:nowrap">{{ clock }} UTC</span>
+</div>
+</div>
+
+<div style="position:absolute;top:76px;left:20px;bottom:20px;width:300px;display:flex;flex-direction:column;background:rgba(7,9,12,.88);border:1px solid #1a232c;border-radius:6px;backdrop-filter:blur(10px)">
+<div style="display:flex;justify-content:space-between;align-items:baseline;padding:16px 16px 12px"><span style="font:600 10px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;color:#6b7a89">TRAFFIC</span><span style="font:500 11px/1 'IBM Plex Mono',monospace;color:#8a98a6">{{ count }} aircraft</span></div>
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;margin:0 16px 14px;background:#1a232c;border:1px solid #1a232c;border-radius:4px;overflow:hidden">
+<div style="display:flex;flex-direction:column;gap:5px;padding:9px 10px;background:#07090c"><span style="font:600 9px/1 'IBM Plex Mono',monospace;letter-spacing:.12em;color:#6b7a89">ARR</span><span style="font:600 16px/1 'IBM Plex Mono',monospace">{{ nArr }}</span></div>
+<div style="display:flex;flex-direction:column;gap:5px;padding:9px 10px;background:#07090c"><span style="font:600 9px/1 'IBM Plex Mono',monospace;letter-spacing:.12em;color:#6b7a89">DEP</span><span style="font:600 16px/1 'IBM Plex Mono',monospace">{{ nDep }}</span></div>
+<div style="display:flex;flex-direction:column;gap:5px;padding:9px 10px;background:#07090c"><span style="font:600 9px/1 'IBM Plex Mono',monospace;letter-spacing:.12em;color:#6b7a89">OVR</span><span style="font:600 16px/1 'IBM Plex Mono',monospace">{{ nOvr }}</span></div>
+</div>
+<div style="flex:1;min-height:0;overflow-y:auto;border-top:1px solid #1a232c">
+<sc-for list="{{ rows }}" as="r" hint-placeholder-count="10">
+<div onClick="{{ r.onClick }}" style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 16px;border-bottom:1px solid #10161c;cursor:pointer;background:{{ r.bg }}" style-hover="background:rgba(255,255,255,.05)">
+<div style="display:flex;flex-direction:column;gap:5px;min-width:0">
+<div style="display:flex;gap:8px;align-items:baseline"><span style="font:600 13px/1 'IBM Plex Mono',monospace;color:#ffffff">{{ r.cs }}</span><span style="font:500 10px/1 'IBM Plex Mono',monospace;color:#6b7a89">{{ r.type }}</span></div>
+<span style="font:500 11px/1 'IBM Plex Mono',monospace;color:#8a98a6">{{ r.route }}</span>
+</div>
+<div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px">
+<span style="font:600 13px/1 'IBM Plex Mono',monospace;color:{{ r.color }}">{{ r.altShort }}</span>
+<span style="font:500 10px/1 'IBM Plex Mono',monospace;color:#6b7a89">{{ r.vsShort }}</span>
+</div>
+</div>
+</sc-for>
+</div>
+</div>
+
+<sc-if value="{{ hasSel }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;top:76px;right:20px;width:320px;display:flex;flex-direction:column;gap:18px;padding:18px;box-sizing:border-box;background:rgba(7,9,12,.9);border:1px solid #1a232c;border-radius:6px;backdrop-filter:blur(10px)">
+<div style="display:flex;justify-content:space-between;align-items:flex-start">
+<div style="display:flex;flex-direction:column;gap:7px"><span style="font:600 28px/1 'IBM Plex Mono',monospace;color:#ffffff">{{ sel.cs }}</span><span style="font:500 13px/1 'IBM Plex Sans Condensed',sans-serif;color:#8a98a6">{{ sel.airline }} · {{ sel.type }}</span></div>
+<button onClick="{{ onClose }}" style="width:28px;height:28px;border:1px solid #24303b;border-radius:4px;background:transparent;color:#8a98a6;cursor:pointer;font:500 13px/1 'IBM Plex Mono',monospace">✕</button>
+</div>
+<span style="align-self:flex-start;padding:5px 8px;border-radius:3px;font:600 10px/1 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#050608;background:{{ sel.color }}">{{ sel.phaseUp }}</span>
+<div style="display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;justify-content:space-between;font:600 22px/1 'IBM Plex Mono',monospace"><span>{{ sel.orig }}</span><span>{{ sel.dest }}</span></div>
+<div style="position:relative;height:2px;background:#1f2a34"><div style="position:absolute;left:0;top:0;bottom:0;width:{{ sel.pct }};background:{{ sel.color }}"></div></div>
+<span style="font:500 11px/1 'IBM Plex Mono',monospace;color:#8a98a6">{{ sel.etaTxt }}</span>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:#1a232c;border:1px solid #1a232c;border-radius:4px;overflow:hidden">
+<div style="display:flex;flex-direction:column;gap:7px;padding:12px;background:#07090c"><span style="font:600 9px/1 'IBM Plex Mono',monospace;letter-spacing:.12em;color:#6b7a89">ALTITUDE</span><span style="font:600 18px/1 'IBM Plex Mono',monospace;color:{{ sel.color }}">{{ sel.altTxt }}</span></div>
+<div style="display:flex;flex-direction:column;gap:7px;padding:12px;background:#07090c"><span style="font:600 9px/1 'IBM Plex Mono',monospace;letter-spacing:.12em;color:#6b7a89">VERTICAL</span><span style="font:600 18px/1 'IBM Plex Mono',monospace">{{ sel.vsTxt }}</span></div>
+<div style="display:flex;flex-direction:column;gap:7px;padding:12px;background:#07090c"><span style="font:600 9px/1 'IBM Plex Mono',monospace;letter-spacing:.12em;color:#6b7a89">GROUND SPEED</span><span style="font:600 18px/1 'IBM Plex Mono',monospace">{{ sel.spdTxt }}</span></div>
+<div style="display:flex;flex-direction:column;gap:7px;padding:12px;background:#07090c"><span style="font:600 9px/1 'IBM Plex Mono',monospace;letter-spacing:.12em;color:#6b7a89">HEADING</span><span style="font:600 18px/1 'IBM Plex Mono',monospace">{{ sel.hdgTxt }}</span></div>
+<div style="display:flex;flex-direction:column;gap:7px;padding:12px;background:#07090c"><span style="font:600 9px/1 'IBM Plex Mono',monospace;letter-spacing:.12em;color:#6b7a89">DISTANCE</span><span style="font:600 18px/1 'IBM Plex Mono',monospace">{{ sel.distTxt }}</span></div>
+<div style="display:flex;flex-direction:column;gap:7px;padding:12px;background:#07090c"><span style="font:600 9px/1 'IBM Plex Mono',monospace;letter-spacing:.12em;color:#6b7a89">ICAO24</span><span style="font:600 18px/1 'IBM Plex Mono',monospace">{{ sel.icao }}</span></div>
+</div>
+<button onClick="{{ onFollow }}" style="padding:12px;border-radius:4px;border:1px solid #e8edf2;cursor:pointer;font:600 11px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;background:{{ followBg }};color:{{ followFg }}">{{ followTxt }}</button>
+</div>
+</sc-if>
+<sc-if value="{{ noSel }}" hint-placeholder-val="{{ true }}">
+<div style="position:absolute;top:76px;right:20px;width:320px;display:flex;flex-direction:column;gap:8px;padding:16px 18px;box-sizing:border-box;background:rgba(7,9,12,.88);border:1px solid #1a232c;border-radius:6px">
+<span style="font:600 10px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;color:#6b7a89">NO AIRCRAFT SELECTED</span>
+<span style="font:400 14px/1.4 'IBM Plex Sans Condensed',sans-serif;color:#c4ced8;text-wrap:pretty">Click an aircraft or a list row to see its details and follow it with the camera.</span>
+</div>
+</sc-if>
+
+<div style="position:absolute;right:20px;bottom:20px;width:320px;display:flex;flex-direction:column;gap:12px;padding:14px 16px;box-sizing:border-box;background:rgba(7,9,12,.88);border:1px solid #1a232c;border-radius:6px">
+<div style="display:flex;justify-content:space-between"><span style="font:600 10px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;color:#6b7a89">ALTITUDE · FT</span><span style="font:600 10px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;color:#6b7a89">VERTICAL ×3</span></div>
+<div style="height:6px;border-radius:1px;background:linear-gradient(90deg,#ffb020 0%,#b6f03c 12.5%,#2ff0c0 30%,#3cb8ff 55%,#9a7bff 80%,#ff5ad8 100%)"></div>
+<div style="display:flex;justify-content:space-between;font:500 10px/1 'IBM Plex Mono',monospace;color:#8a98a6"><span>0</span><span>10k</span><span>20k</span><span>30k</span><span>40k</span></div>
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px">
+<button onClick="{{ onOverview }}" style="padding:8px 0;border:1px solid #24303b;border-radius:3px;background:transparent;color:#c4ced8;cursor:pointer;font:600 10px/1 'IBM Plex Mono',monospace;letter-spacing:.1em" style-hover="border-color:#e8edf2;color:#ffffff">OVERVIEW</button>
+<button onClick="{{ onTop }}" style="padding:8px 0;border:1px solid #24303b;border-radius:3px;background:transparent;color:#c4ced8;cursor:pointer;font:600 10px/1 'IBM Plex Mono',monospace;letter-spacing:.1em" style-hover="border-color:#e8edf2;color:#ffffff">TOP</button>
+<button onClick="{{ onSide }}" style="padding:8px 0;border:1px solid #24303b;border-radius:3px;background:transparent;color:#c4ced8;cursor:pointer;font:600 10px/1 'IBM Plex Mono',monospace;letter-spacing:.1em" style-hover="border-color:#e8edf2;color:#ffffff">SIDE</button>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+const num = n => Math.round(n).toLocaleString('en-US');
+const altShort = a => a < 100 ? 'GND' : num(Math.round(a / 100) * 100);
+const fl3 = a => a < 100 ? 'GND' : String(Math.round(a / 100)).padStart(3, '0');
+const arrow = v => v > 300 ? '↑' : v < -300 ? '↓' : '';
+const vsShort = v => v > 300 ? '↑ ' + num(v) : v < -300 ? '↓ ' + num(-v) : 'level';
+const coords = a => `${Math.abs(a.lat).toFixed(2)}°${a.lat >= 0 ? 'N' : 'S'} ${Math.abs(a.lon).toFixed(2)}°${a.lon >= 0 ? 'E' : 'W'}`;
+const YVR = { icao: 'CYVR', iata: 'YVR', name: 'Vancouver International', city: 'Vancouver', lat: 49.1947, lon: -123.1792, rwy: 280 };
+
+class Component extends DCLogic {
+  state = { rows: [], counts: { ARR: 0, DEP: 0, OVR: 0 }, selId: null, follow: false, airport: YVR, q: '', focus: false, hi: 0, results: [], clock: '' };
+  sceneRef = React.createRef(); inputRef = React.createRef();
+
+  async componentDidMount() {
+    const tick = () => this.setState({ clock: new Date().toISOString().slice(11, 19) });
+    tick(); this.clockT = setInterval(tick, 1000);
+    this.onSlash = e => { if (e.key === '/' && document.activeElement !== this.inputRef.current) { e.preventDefault(); this.inputRef.current && this.inputRef.current.focus(); } };
+    window.addEventListener('keydown', this.onSlash);
+    const base = document.baseURI;
+    const [m, ap] = await Promise.all([import(new URL('flight-scene.js', base).href), import(new URL('airports.js', base).href)]);
+    if (this.dead) return;
+    this.search = ap.searchAirports;
+    this.scene = m.createFlightScene(this.sceneRef.current, {
+      tiles: 'dark_nolabels', tint: [1.25, 1.4, 1.6], bg: 0x050608, grid: 0x10181f, rings: 0x24323f, ringLabel: '#5b6f80',
+      colorFn: f => m.rampHex(f.alt), theta: .55, phi: .98, r: 100, airport: 'YVR',
+      labelHTML: (f, hex, sel) => `<div style="display:flex;gap:6px;align-items:baseline;padding:3px 6px;background:rgba(5,6,8,.8);border:1px solid ${sel ? '#fff' : 'rgba(255,255,255,.1)'};border-radius:3px;font:600 11px/1 'IBM Plex Mono',monospace;color:#fff">${f.cs}<span style="color:${hex}">${fl3(f.alt)}${arrow(f.vs)}</span></div>`,
+    });
+    this.scene.on('update', d => this.setState({ rows: d.rows, counts: d.counts }));
+    this.scene.on('select', id => this.setState({ selId: id }));
+    this.scene.on('follow', f => this.setState({ follow: f }));
+  }
+  componentWillUnmount() { this.dead = true; clearInterval(this.clockT); window.removeEventListener('keydown', this.onSlash); this.scene && this.scene.destroy(); }
+
+  pick(a) {
+    this.setState({ airport: a, q: '', results: [], hi: 0, selId: null, follow: false });
+    this.scene && this.scene.setAirport(a);
+    this.inputRef.current && this.inputRef.current.blur();
+  }
+
+  renderVals() {
+    const s = this.state, sc = this.scene;
+    const results = s.results.map((a, i) => ({ ...a, bg: i === s.hi ? 'rgba(47,240,192,.12)' : 'transparent',
+      onPick: e => { e.preventDefault(); this.pick(a); }, onHover: () => this.setState({ hi: i }) }));
+    const rows = s.rows.map(r => { const isSel = r.id === s.selId; return { ...r, isSel,
+      route: r.orig + ' → ' + r.dest, altShort: altShort(r.alt), vsShort: vsShort(r.vs),
+      onClick: () => sc && sc.select(isSel ? null : r.id), bg: isSel ? 'rgba(255,255,255,.08)' : 'transparent' }; });
+    const r = rows.find(x => x.isSel), code = s.airport.iata || s.airport.icao;
+    const sel = r ? { ...r, phaseUp: r.phase.toUpperCase(), pct: Math.round(r.progress * 100) + '%',
+      altTxt: r.alt < 100 ? 'GND' : num(r.alt) + ' ft',
+      vsTxt: r.vs > 300 ? '+' + num(r.vs) + ' fpm' : r.vs < -300 ? '−' + num(-r.vs) + ' fpm' : 'Level',
+      spdTxt: r.spd + ' kt', hdgTxt: String(r.hdg).padStart(3, '0') + '°', distTxt: r.dist + ' NM',
+      etaTxt: r.cat === 'ARR' ? `Touchdown at ${code} in ~${r.eta} min` : `Leaves the ${code} area in ~${r.eta} min` } : {};
+    const f = s.follow, hasQ = s.focus && s.q.trim().length > 0;
+    return {
+      sceneRef: this.sceneRef, inputRef: this.inputRef, clock: s.clock,
+      ap: { ...s.airport, coords: coords(s.airport) },
+      q: s.q, results, showResults: hasQ, noResults: hasQ && results.length === 0,
+      searchBorder: s.focus ? '#2ff0c0' : '#1a232c',
+      onQuery: e => { const q = e.target.value; this.setState({ q, hi: 0, results: this.search ? this.search(q) : [] }); },
+      onFocus: () => this.setState({ focus: true }), onBlur: () => this.setState({ focus: false }),
+      onKey: e => {
+        if (e.key === 'ArrowDown') { e.preventDefault(); this.setState({ hi: Math.min(s.hi + 1, Math.max(0, s.results.length - 1)) }); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); this.setState({ hi: Math.max(0, s.hi - 1) }); }
+        else if (e.key === 'Enter' && s.results[s.hi]) this.pick(s.results[s.hi]);
+        else if (e.key === 'Escape') { this.setState({ q: '', results: [] }); e.target.blur(); }
+      },
+      rows, sel, hasSel: !!r, noSel: !r, count: rows.length, nArr: s.counts.ARR, nDep: s.counts.DEP, nOvr: s.counts.OVR,
+      onFollow: () => sc && sc.setFollow(!f), onClose: () => sc && sc.select(null),
+      onOverview: () => sc && sc.setView('overview'), onTop: () => sc && sc.setView('top'), onSide: () => sc && sc.setView('side'),
+      followTxt: f ? 'FOLLOWING · CLICK TO RELEASE' : 'FOLLOW WITH CAMERA', followBg: f ? '#e8edf2' : 'transparent', followFg: f ? '#050608' : '#e8edf2',
+    };
+  }
+}
+</script>
+</body>
+</html>
