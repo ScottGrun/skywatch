@@ -4,3 +4,6 @@ dist
 .dev.vars
 .env.local
 *.log
+screenshots
+test-results
+playwright-report
