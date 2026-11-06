@@ -66,9 +66,11 @@ export const ROLL_SMOOTH = 5 // 1/s
 export const SELECT_COLOR = 0xffffff
 
 // Selection
-export const HALO_BASE = 1.05
-export const HALO_AMP = 0.06
-export const HALO_PERIOD_MS = 220
+// Selected aircraft: its ground ring pulses in its own altitude color.
+export const SEL_RING_SCALE = 1.6 // base size relative to the normal ring
+export const SEL_RING_AMP = 0.35 // ± scale swing
+export const SEL_RING_PERIOD_MS = 1100 // full pulse period
+export const SEL_RING_OPACITY = [0.45, 1] as const // min/max opacity over a pulse
 export const ROUTE_EXTEND_KM = 40
 export const ROUTE_DASH = 1.2
 export const ROUTE_GAP = 0.9

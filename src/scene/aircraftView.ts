@@ -22,6 +22,10 @@ import {
   SCALE_MIN,
   TRAIL_POINTS,
   TRAIL_SAMPLE_MS,
+  SEL_RING_AMP,
+  SEL_RING_OPACITY,
+  SEL_RING_PERIOD_MS,
+  SEL_RING_SCALE,
 } from './constants'
 import { AircraftLabel } from './labels'
 
@@ -203,9 +207,16 @@ export class AircraftView {
     this.drop.position.set(x, 0, z)
     this.drop.scale.y = Math.max(y, 1e-4)
     this.drop.visible = y > 0.05 && !ac.onGround
-    this.dot.visible = !ac.onGround
+    this.dot.visible = !ac.onGround || selected
     this.dot.position.set(x, 0.08, z)
-    this.dot.scale.setScalar(sc * size * 0.8)
+    if (selected) {
+      const p = 0.5 + 0.5 * Math.sin((c.nowMs / SEL_RING_PERIOD_MS) * Math.PI * 2)
+      this.dot.scale.setScalar(sc * size * 0.8 * (SEL_RING_SCALE + SEL_RING_AMP * (p * 2 - 1)))
+      this.dotMat.opacity = SEL_RING_OPACITY[0] + (SEL_RING_OPACITY[1] - SEL_RING_OPACITY[0]) * p
+    } else {
+      this.dot.scale.setScalar(sc * size * 0.8)
+      this.dotMat.opacity = DOT_OPACITY
+    }
 
     this.trail.visible = !ac.onGround
     if (ac.onGround) this.hN = 0

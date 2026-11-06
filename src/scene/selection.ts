@@ -4,9 +4,6 @@ import type { Aircraft } from '../types'
 import type { AircraftView } from './aircraftView'
 import {
   D2R,
-  HALO_AMP,
-  HALO_BASE,
-  HALO_PERIOD_MS,
   ROUTE_DASH,
   ROUTE_EXTEND_KM,
   ROUTE_GAP,
@@ -45,19 +42,6 @@ export function pickThreshold(ac: Aircraft, ts: readonly Threshold[]): Threshold
 }
 
 export function createSelection(scene: THREE.Scene): SelectionHandle {
-  const halo = new THREE.Mesh(
-    new THREE.RingGeometry(0.66, 0.74, 48),
-    new THREE.MeshBasicMaterial({
-      color: SELECT_COLOR,
-      transparent: true,
-      depthTest: false,
-      side: THREE.DoubleSide,
-    }),
-  )
-  halo.renderOrder = 10
-  halo.visible = false
-  scene.add(halo)
-
   const rg = new THREE.BufferGeometry()
   const pos = new THREE.BufferAttribute(new Float32Array(6), 3)
   rg.setAttribute('position', pos)
@@ -78,14 +62,9 @@ export function createSelection(scene: THREE.Scene): SelectionHandle {
   return {
     update(view, ac, camera, nowMs, thresholds) {
       if (!view || !ac) {
-        halo.visible = false
         route.visible = false
         return
       }
-      halo.visible = true
-      halo.position.set(view.x, view.y, view.z)
-      halo.quaternion.copy(camera.quaternion)
-      halo.scale.setScalar(view.scale * (HALO_BASE + HALO_AMP * Math.sin(nowMs / HALO_PERIOD_MS)))
 
       let ex: number
       let ey = view.y
@@ -111,9 +90,7 @@ export function createSelection(scene: THREE.Scene): SelectionHandle {
       route.visible = true
     },
     dispose() {
-      scene.remove(halo, route)
-      halo.geometry.dispose()
-      ;(halo.material as THREE.Material).dispose()
+      scene.remove(route)
       rg.dispose()
       ;(route.material as THREE.Material).dispose()
     },
