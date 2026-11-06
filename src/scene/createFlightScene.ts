@@ -8,6 +8,10 @@ import {
   DIR_INTENSITY,
   FOG_FAR,
   FOG_NEAR,
+  GFOG_FAR_A,
+  GFOG_FAR_B,
+  GFOG_NEAR_A,
+  GFOG_NEAR_B,
   HEMI_GROUND,
   HEMI_INTENSITY,
   HEMI_SKY,
@@ -15,7 +19,10 @@ import {
 } from './constants'
 import { bindControls } from './controls'
 import { createOverlay, createStaticLabels, placeStatic, type StaticLabel } from './labels'
+import { createHover } from './hover'
+import { createLineup } from './lineup'
 import { pickNearest } from './picking'
+import { radialFog } from './radialFog'
 import { projectToScreen, type ScreenPoint } from './projection'
 import { buildRings } from './rings'
 import { buildRunways, type RunwaysHandle } from './runways'
@@ -122,9 +129,15 @@ export function createFlightScene(container: HTMLElement): FlightScene {
 
   // --- input ---
   const unbind = bindControls(cv, rig, {
-    onClick: (x, y) => select(pickNearest(pool.active.values(), rig.camera, w, h, x, y)),
+    onClick: (x, y) => {
+      const id = pickNearest(pool.active.values(), rig.camera, w, h, x, y)
+      select(id)
+      if (id) setFollow(true)
+    },
     onPan: () => setFollow(false),
   })
+
+  const hover = createHover(cv, (x, y) => pickNearest(pool.active.values(), rig.camera, w, h, x, y))
 
   // --- frame loop ---
   const ctx: FrameCtx = { nowMs: 0, dt: 0, elevFt: 0, cam: rig.camera.position }
@@ -144,10 +157,15 @@ export function createFlightScene(container: HTMLElement): FlightScene {
     // camera first (follows last frame's selected position)
     const selView = selId ? (pool.active.get(selId) ?? null) : null
     rig.update(dt, follow && selView ? selView : null)
+    const orb = rig.orbitState
+    radialFog.center.value.set(orb.x, orb.z)
+    radialFog.near.value = GFOG_NEAR_A + GFOG_NEAR_B * orb.r
+    radialFog.far.value = GFOG_FAR_A + GFOG_FAR_B * orb.r
 
     ctx.nowMs = nowMs
     ctx.dt = dt
     ctx.elevFt = airport?.elevationFt ?? 0
+    const hoverId = hover.tick()
     seen.clear()
     let selAc: Aircraft | null = null
     for (const ac of acs) {
@@ -155,7 +173,7 @@ export function createFlightScene(container: HTMLElement): FlightScene {
       const v = pool.active.get(ac.id) ?? pool.acquire(ac, nowMs)
       const isSel = ac.id === selId
       if (isSel) selAc = ac
-      v.update(ac, ctx, isSel)
+      v.update(ac, ctx, isSel, ac.id === hoverId)
     }
     gone.length = 0
     for (const id of pool.active.keys()) if (!seen.has(id)) gone.push(id)
@@ -176,6 +194,7 @@ export function createFlightScene(container: HTMLElement): FlightScene {
       projectToScreen(rig.camera, w, h, v.x, v.y, v.z, sp)
       const hide =
         sp.behind ||
+        !v.showLabel ||
         sp.x < -150 ||
         sp.x > w + 50 ||
         sp.y < -50 ||
@@ -212,7 +231,7 @@ export function createFlightScene(container: HTMLElement): FlightScene {
   return {
     setAirport,
     setTraffic(src: TrafficSource) {
-      traffic = src
+      traffic = location.search.includes('models=1') ? createLineup() : src
     },
     select,
     setFollow,
@@ -225,6 +244,7 @@ export function createFlightScene(container: HTMLElement): FlightScene {
       stop()
       document.removeEventListener('visibilitychange', onVisibility)
       unbind()
+      hover.dispose()
       ro.disconnect()
       selFns.clear()
       folFns.clear()

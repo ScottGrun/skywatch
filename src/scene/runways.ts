@@ -10,6 +10,7 @@ import {
   RUNWAY_COLOR,
   RUNWAY_MIN_WIDTH_KM,
 } from './constants'
+import { applyRadialFog } from './radialFog'
 
 /** A landing threshold: position (km east/north of airport) and landing heading. */
 export interface Threshold {
@@ -86,7 +87,7 @@ export function buildRunways(group: THREE.Group, ap: Airport): RunwaysHandle {
     const len = Math.hypot(dx, dn) || 0.1
     const m = new THREE.Mesh(
       new THREE.BoxGeometry(g.widthKm, 0.04, len),
-      new THREE.MeshBasicMaterial({ color: RUNWAY_COLOR }),
+      applyRadialFog(new THREE.MeshBasicMaterial({ color: RUNWAY_COLOR })),
     )
     m.position.set((g.a.e + g.b.e) / 2, 0.06, -(g.a.n + g.b.n) / 2)
     m.rotation.y = Math.atan2(dx, -dn)
@@ -103,13 +104,15 @@ export function buildRunways(group: THREE.Group, ap: Airport): RunwaysHandle {
     ])
     const line = new THREE.Line(
       geo,
-      new THREE.LineDashedMaterial({
-        color: 0xffffff,
-        dashSize: 0.8,
-        gapSize: 0.8,
-        transparent: true,
-        opacity: APPROACH_OPACITY,
-      }),
+      applyRadialFog(
+        new THREE.LineDashedMaterial({
+          color: 0xffffff,
+          dashSize: 0.8,
+          gapSize: 0.8,
+          transparent: true,
+          opacity: APPROACH_OPACITY,
+        }),
+      ),
     )
     line.computeLineDistances()
     line.visible = false

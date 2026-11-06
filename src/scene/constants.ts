@@ -3,6 +3,11 @@
 export const BG = 0x050608
 export const FOG_NEAR = 130
 export const FOG_FAR = 300
+/** Radial ground fog around the orbit target, in km: near = a + b*r, far = a + b*r (r = orbit distance). */
+export const GFOG_NEAR_A = 40
+export const GFOG_NEAR_B = 0.35
+export const GFOG_FAR_A = 80
+export const GFOG_FAR_B = 0.9
 export const FOV = 40
 
 export const ALT_EXAG = 3
@@ -12,9 +17,15 @@ export const D2R = Math.PI / 180
 
 // Tiles
 export const TILE_ZOOM = 10
-export const TILE_R = 3 // 7x7
+export const TILE_R = 4 // 9x9 detailed tiles
+/** Low-zoom outer ring beneath the detailed tiles (cheap far coverage). */
+export const TILE_ZOOM_FAR = 8
+export const TILE_R_FAR = 4 // 9x9 at z8 is roughly +-450 km
+export const TILE_FAR_DROP = 0.15
 /** Esri Dark Gray is lighter than the CARTO tiles the design assumed, so it is tinted down. */
 export const TILE_TINT_ESRI: readonly [number, number, number] = [0.5, 0.6, 0.72]
+/** Neutral tint for a custom (VITE_MAPBOX_STYLE) style, which is usually already dark. */
+export const TILE_TINT_CUSTOM: readonly [number, number, number] = [1, 1, 1]
 export const TILE_TINT: readonly [number, number, number] = [1.25, 1.4, 1.6]
 
 // Ground decor
@@ -80,3 +91,23 @@ export const EASE = 6
 export const EASE_FOLLOW = 10
 export const FOLLOW_R = 18
 export const FOLLOW_PHI = 1.2
+
+// Aircraft class sizes: rough real length relative to a narrowbody, applied on top of the
+// camera-distance scale. Anything below CLASS_SIZE_FLOOR is raised so it stays visible/clickable.
+export const CLASS_SIZE: Readonly<Record<string, number>> = {
+  quad: 1.35,
+  wide: 1.2,
+  narrow: 0.9,
+  regional: 0.75,
+  turboprop: 0.7,
+  bizjet: 0.55,
+  heli: 0.45,
+  piston: 0.4,
+  unknown: 0.8,
+}
+export const CLASS_SIZE_FLOOR = 0.52
+
+// Ground aircraft
+export const GROUND_COLOR = 0x5b6670
+export const GROUND_EMISSIVE = 0.25
+export const HOVER_PICK_PX = 28

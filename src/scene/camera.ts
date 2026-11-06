@@ -28,10 +28,15 @@ const HOME_POSE: Pose = { ...HOME, tx: 0, ty: 0, tz: 0 }
 
 /** Orbit camera around a target, eased toward a goal pose. */
 export class CameraRig {
-  readonly camera = new THREE.PerspectiveCamera(FOV, 1, 0.1, 2000)
+  readonly camera = new THREE.PerspectiveCamera(FOV, 1, 0.5, 2000)
   private cam: Pose = { ...HOME_POSE }
   private goal: Pose = { ...HOME_POSE }
   following = false
+
+  /** Current (eased) orbit target on the ground plane and orbit distance. */
+  get orbitState(): { x: number; z: number; r: number } {
+    return { x: this.cam.tx, z: this.cam.tz, r: this.cam.r }
+  }
 
   setAspect(aspect: number): void {
     this.camera.aspect = aspect

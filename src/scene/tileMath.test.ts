@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { attributionFor, latToTileY, lonToTileX, tileUrl, tileXToLon, tileYToLat } from './tileMath'
+import { attributionFor, parseMapboxStyle, latToTileY, lonToTileX, tileUrl, tileXToLon, tileYToLat } from './tileMath'
 
 describe('tileMath', () => {
   it('round-trips lon/lat through tile coordinates', () => {
@@ -21,5 +21,13 @@ describe('tileMath', () => {
     )
     expect(attributionFor('tok')).toContain('Mapbox')
     expect(attributionFor(undefined)).toContain('Esri')
+  })
+  it('parses mapbox style forms', () => {
+    const want = { user: 'me', id: 'abc' }
+    expect(parseMapboxStyle('mapbox://styles/me/abc')).toEqual(want)
+    expect(parseMapboxStyle('me/abc')).toEqual(want)
+    expect(parseMapboxStyle('https://api.mapbox.com/styles/v1/me/abc?access_token=x')).toEqual(want)
+    expect(parseMapboxStyle(undefined)).toEqual({ user: 'mapbox', id: 'dark-v11' })
+    expect(tileUrl(1, 2, 3, 't', 'mapbox://styles/me/abc')).toContain('/styles/v1/me/abc/tiles/512/1/2/3@2x')
   })
 })

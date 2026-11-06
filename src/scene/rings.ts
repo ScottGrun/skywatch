@@ -10,6 +10,7 @@ import {
   RING_LABEL_COLOR,
   RING_NM,
 } from './constants'
+import { applyRadialFog } from './radialFog'
 
 /** A fixed text marker positioned in world space (e/n km, ground level). */
 export interface StaticLabelDef {
@@ -29,14 +30,14 @@ function circle(r: number): THREE.Line {
   }
   return new THREE.Line(
     new THREE.BufferGeometry().setFromPoints(pts),
-    new THREE.LineBasicMaterial({ color: RING_COLOR, transparent: true, opacity: 0.9 }),
+    applyRadialFog(new THREE.LineBasicMaterial({ color: RING_COLOR, transparent: true, opacity: 0.9 })),
   )
 }
 
 /** Grid + range rings added to `group`; returns label definitions for the overlay. */
 export function buildRings(group: THREE.Group): StaticLabelDef[] {
-  const grid = new THREE.GridHelper(200, 20, GRID_COLOR, GRID_COLOR)
-  const gm = grid.material as THREE.Material
+  const grid = new THREE.GridHelper(800, 80, GRID_COLOR, GRID_COLOR)
+  const gm = applyRadialFog(grid.material as THREE.Material)
   gm.transparent = true
   gm.opacity = GRID_OPACITY
   grid.position.y = 0.02

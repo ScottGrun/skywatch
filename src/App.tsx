@@ -121,6 +121,10 @@ export function App() {
     setFollow(false)
     setAirport(a)
   }, [])
+  const onListSelect = useCallback((id: string | null) => {
+    setSelectedId(id)
+    setFollow(id !== null)
+  }, [])
   const onView = useCallback((v: ViewPreset) => sceneRef.current?.view(v), [])
 
   const selected = aircraft.find((a) => a.id === selectedId) ?? null
@@ -128,7 +132,7 @@ export function App() {
     <div className="app">
       <div className="scene" ref={container} />
       <TopBar airport={airport} airports={airports} status={status} onPick={pickAirport} />
-      <TrafficList aircraft={aircraft} selectedId={selectedId} onSelect={setSelectedId} />
+      <TrafficList aircraft={aircraft} selectedId={selectedId} onSelect={onListSelect} />
       <DetailsCard
         aircraft={selected}
         airportCode={airport ? airport.iata || airport.icao : ''}

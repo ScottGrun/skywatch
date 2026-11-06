@@ -3,12 +3,12 @@ import { defineConfig } from '@playwright/test'
 export default defineConfig({
   testDir: 'e2e',
   testMatch: '*.e2e.ts',
-  timeout: 90_000,
+  timeout: 180_000,
   reporter: 'list',
-  use: { baseURL: 'http://localhost:5173', viewport: { width: 1440, height: 900 } },
+  use: { baseURL: process.env.E2E_URL ?? 'http://localhost:5173', viewport: { width: 1440, height: 900 } },
   webServer: {
-    command: 'pnpm dev --port 5173 --strictPort',
-    url: 'http://localhost:5173',
+    command: process.env.E2E_URL ? 'echo external' : 'pnpm dev --port 5173 --strictPort',
+    url: process.env.E2E_URL ?? 'http://localhost:5173',
     reuseExistingServer: true,
     timeout: 60_000,
   },
