@@ -78,6 +78,7 @@ export function createFlightScene(container: HTMLElement): FlightScene {
   let traffic: TrafficSource | null = null
   let selId: string | null = null
   let follow = false
+  let filter: ((a: Aircraft) => boolean) | null = null
   let world: THREE.Group | null = null
   let statics: StaticLabel[] = []
   let runways: RunwaysHandle | null = null
@@ -169,6 +170,7 @@ export function createFlightScene(container: HTMLElement): FlightScene {
     seen.clear()
     let selAc: Aircraft | null = null
     for (const ac of acs) {
+      if (filter && !filter(ac)) continue
       seen.add(ac.id)
       const v = pool.active.get(ac.id) ?? pool.acquire(ac, nowMs)
       const isSel = ac.id === selId
@@ -235,6 +237,9 @@ export function createFlightScene(container: HTMLElement): FlightScene {
     },
     select,
     setFollow,
+    setFilter(pred) {
+      filter = pred
+    },
     view(preset: ViewPreset) {
       setFollow(false)
       rig.preset(preset)

@@ -4,18 +4,22 @@ import { altColor, callsignOf, dash, fmtAlt, fmtVsShort } from './format.ts'
 
 interface Props {
   aircraft: Aircraft[]
+  /** Aircraft before filtering, for the "N of M" header. */
+  total: number
   selectedId: string | null
   onSelect: (id: string | null) => void
 }
 
-export function TrafficList({ aircraft, selectedId, onSelect }: Props) {
+export function TrafficList({ aircraft, total, selectedId, onSelect }: Props) {
   const sorted = useMemo(() => [...aircraft].sort((a, b) => b.altFt - a.altFt), [aircraft])
   const count = (c: string) => aircraft.filter((a) => a.category === c).length
   return (
     <aside className="panel traffic">
       <div className="traffic-head">
         <span className="label">TRAFFIC</span>
-        <span className="traffic-n">{aircraft.length} aircraft</span>
+        <span className="traffic-n">
+          {aircraft.length === total ? total : `${aircraft.length} of ${total}`} aircraft
+        </span>
       </div>
       <div className="counts">
         {(['ARR', 'DEP', 'OVR'] as const).map((c) => (

@@ -29,15 +29,7 @@ export interface Airport {
 }
 
 export type AircraftClass =
-  | 'narrow'
-  | 'wide'
-  | 'quad'
-  | 'regional'
-  | 'turboprop'
-  | 'piston'
-  | 'bizjet'
-  | 'heli'
-  | 'unknown'
+  'narrow' | 'wide' | 'quad' | 'regional' | 'turboprop' | 'piston' | 'bizjet' | 'heli' | 'unknown'
 export type Category = 'ARR' | 'DEP' | 'OVR'
 export type Phase =
   | 'Takeoff roll'
@@ -92,6 +84,8 @@ export interface FlightScene {
   setTraffic(src: TrafficSource): void
   select(id: string | null): void
   setFollow(on: boolean): void
+  /** Hide aircraft failing `pred` (no mesh/label/trail/ring, not pickable). null shows all. */
+  setFilter(pred: ((a: Aircraft) => boolean) | null): void
   view(preset: ViewPreset): void
   on(event: 'select', fn: (id: string | null) => void): () => void
   on(event: 'follow', fn: (on: boolean) => void): () => void

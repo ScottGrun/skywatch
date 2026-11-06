@@ -1,8 +1,16 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Aircraft, Airport, FeedStatus, FlightScene, ViewPreset } from './types.ts'
 import { loadAirports } from './data/airports.ts'
 import { createTraffic, type TrafficHandle } from './data/traffic.ts'
 import { createFlightScene, mapAttribution } from './scene'
+import {
+  FILTER_STORE_KEY,
+  buildPredicate,
+  filterToParams,
+  loadFilter,
+  serializeFilter,
+  type FilterState,
+} from './core/filter.ts'
 import { Attribution } from './ui/Attribution.tsx'
 import { DetailsCard } from './ui/DetailsCard.tsx'
 import { Legend } from './ui/Legend.tsx'
@@ -40,6 +48,16 @@ export function App() {
   const [follow, setFollow] = useState(false)
   const [status, setStatus] = useState<FeedStatus>('connecting')
   const [aircraft, setAircraft] = useState<Aircraft[]>([])
+  const [filter, setFilter] = useState<FilterState>(() => {
+    let stored: string | null = null
+    try {
+      stored = localStorage.getItem(FILTER_STORE_KEY)
+    } catch {
+      /* storage unavailable */
+    }
+    return loadFilter(location.search, stored)
+  })
+  const pred = useMemo(() => buildPredicate(filter), [filter])
 
   // Scene: created once (StrictMode-safe via cleanup).
   useEffect(() => {
@@ -110,6 +128,24 @@ export function App() {
     }
   }, [])
 
+  const visible = useMemo(() => (pred ? aircraft.filter(pred) : aircraft), [aircraft, pred])
+
+  // Filter: scene predicate + URL + storage; drop selection if it got filtered out.
+  useEffect(() => {
+    sceneRef.current?.setFilter(pred)
+    const url = new URL(location.href)
+    filterToParams(filter, url.searchParams)
+    history.replaceState(null, '', url)
+    try {
+      localStorage.setItem(FILTER_STORE_KEY, serializeFilter(filter))
+    } catch {
+      /* ignore */
+    }
+  }, [filter, pred])
+  useEffect(() => {
+    if (selectedId && !visible.some((a) => a.id === selectedId)) setSelectedId(null)
+  }, [visible, selectedId])
+
   useEffect(() => sceneRef.current?.select(selectedId), [selectedId])
   useEffect(() => sceneRef.current?.setFollow(follow), [follow])
   useEffect(() => {
@@ -127,12 +163,25 @@ export function App() {
   }, [])
   const onView = useCallback((v: ViewPreset) => sceneRef.current?.view(v), [])
 
-  const selected = aircraft.find((a) => a.id === selectedId) ?? null
+  const selected = visible.find((a) => a.id === selectedId) ?? null
   return (
     <div className="app">
       <div className="scene" ref={container} />
-      <TopBar airport={airport} airports={airports} status={status} onPick={pickAirport} />
-      <TrafficList aircraft={aircraft} selectedId={selectedId} onSelect={onListSelect} />
+      <TopBar
+        airport={airport}
+        airports={airports}
+        status={status}
+        onPick={pickAirport}
+        filter={filter}
+        aircraft={aircraft}
+        onFilter={setFilter}
+      />
+      <TrafficList
+        aircraft={visible}
+        total={aircraft.length}
+        selectedId={selectedId}
+        onSelect={onListSelect}
+      />
       <DetailsCard
         aircraft={selected}
         airportCode={airport ? airport.iata || airport.icao : ''}
