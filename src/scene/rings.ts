@@ -30,7 +30,9 @@ function circle(r: number): THREE.Line {
   }
   return new THREE.Line(
     new THREE.BufferGeometry().setFromPoints(pts),
-    applyRadialFog(new THREE.LineBasicMaterial({ color: RING_COLOR, transparent: true, opacity: 0.9 })),
+    applyRadialFog(
+      new THREE.LineBasicMaterial({ color: RING_COLOR, transparent: true, opacity: 0.9 }),
+    ),
   )
 }
 
