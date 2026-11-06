@@ -16,6 +16,8 @@ export interface StateOut {
   track: number
   vrMs: number
   onGround: boolean
+  /** OpenSky emitter category 0..20 (only with extended=1); omitted when absent. */
+  category?: number
 }
 export interface StatesBody {
   time: number
@@ -46,7 +48,8 @@ export function mapStates(raw: { time?: number; states?: unknown[][] | null }): 
     const lon = r[5]
     const lat = r[6]
     if (typeof lon !== 'number' || typeof lat !== 'number') continue
-    states.push({
+    const cat = r[17]
+    const out: StateOut = {
       icao24: String(r[0] ?? '').toLowerCase(),
       callsign: String(r[1] ?? '').trim(),
       lat,
@@ -56,7 +59,9 @@ export function mapStates(raw: { time?: number; states?: unknown[][] | null }): 
       track: num(r[10]),
       vrMs: num(r[11]),
       onGround: r[8] === true,
-    })
+    }
+    if (typeof cat === 'number' && Number.isFinite(cat)) out.category = cat
+    states.push(out)
   }
   return { time: num(raw.time), states }
 }
@@ -124,6 +129,7 @@ export function createOpenSkyClient(opts: ClientOpts) {
       lomin: String(b.lomin),
       lamax: String(b.lamax),
       lomax: String(b.lomax),
+      extended: '1',
     })
     try {
       const tk = await getToken()

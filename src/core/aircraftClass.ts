@@ -1,33 +1,79 @@
 import type { AircraftClass } from '../types.ts'
 
-const list = (s: string) => new Set(s.split(/\s+/).filter(Boolean))
+// Ordered: first matching pattern wins. Patterns are tested against the ICAO type designator.
+const RULES: ReadonlyArray<readonly [AircraftClass, RegExp]> = [
+  ['quad', /^(B74[1-8SR]|BLCF|A38\d|A34[2-6]|IL96|A124|AN22|C5M?|E3TF|K35R|B52|C17)$/],
+  [
+    'wide',
+    /^(B76\d|B77[A-Z0-9]|B78[0-9X]|A30[6B]|A310|A33\d|A35[0-9K]|A3ST|DC10|MD11|L101|IL86|IL76|B703|KC10|A332|B772|BSCA)$/,
+  ],
+  [
+    'regional',
+    /^(E1[479]\d|E1[0-9][A-Z]|E[23]\d{2}|E7\d[A-Z]?|E4\dX|E[35]\dL|CRJ[0-9X]|CL[0-9]{2}R|BCS[13]|A220|SU95|RJ\d[0-9A-Z]|B46\d|F100|F70|F28|BAE?146|RJ1H|AR\d{2}|E135|E145|ERJ|SSJ)$/,
+  ],
+  [
+    'turboprop',
+    /^(DH8[A-D]|AT[3-7]\d|SF34|SB20|JS\d\d|BE20|BE30|BE9[0-9L]|B190|B350|PC12|PC6T|PC21|C208|C441|C425|C90|C130|C30J|F27|F50|F60|SH3\d|L410|AN2[468]|AN32|A748|DHC[2-7]|D328|SW[34]|AC9\d|E120|TBM\d|P180|MU2|DH[1-7]|DC3|DC6|PAY\d|T6|AT8|AN12|IL18|C212|CN35|CASA|BE10|BE99|M28|Y12|MA60|DHC\d)$/,
+  ],
+  [
+    'heli',
+    /^(EC\d\d|AS\d\d|AS3[25]|B06|B407|B412|B429|B427|B505|B212|B230|B47[A-Z]?|R22|R44|R66|S76|S92|S61|S64|S70|H60|A109|A119|A139|A169|A189|H160|H125|H130|H135|H145|MD52|MD60|MD90|EXPL|NH90|CH47|H47|UH1|H500|MI\d+|KA\d+|BK17|EN28|EN48|G2CA|HUCO)$/,
+  ],
+  [
+    'bizjet',
+    /^(C25[A-Z]|C5[0-9]{2}|C56X|C68[A-Z]?|C700|C750|CL[3-6][0-9]|GL[0-9A-Z]{2}|GLF\d|GLEX|G[2-7]\d{2}|LJ\d{2}|E55P|E50P|FA\d[0-9A-Z]|F2TH|F900|FA7X|FA8X|H25[BC]|HDJT|PRM1|ASTR|WW24|SF50|EA50|BE40|BE4W|C510|PC24|GALX|LJ\d\d|CL30|CL35|CL60|HA4T|GA[0-9]C|GA[0-9]{2}|G150|G280|MU30|ECLP|E545|E550)$/,
+  ],
+  [
+    'piston',
+    /^(C1[0-9]{2}|C150|C152|C162|C172|C175|C177|C180|C182|C185|C195|C20[0-9]|C21\d|C310|C337|C340|C402|C414|C421|PA\d{2}|P28[A-Z]|P32[A-Z]|PA2\d|PA3\d|PA4\d|SR2\d|S22T|BE3\d|BE5\d|BE6\d|BE7\d|BE76|M20[A-Z]|DA\d\d|DV20|AA5|AA1|RV\d|COL[34]|TB\d{1,2}|TOBA|TRIN|G115|CH7[A-Z]|SLG2|GLID|ULAC|AT\d[A-Z]?|P46T|PA46|C77R|GA7|J3|PIVI|M600|CRUZ|BL8|CNA|DR40|SIRA|EVOT|ARCE|M[0-9]{3}|B[0-9]{2}P|NG5|SF25|YK\d+|SK\d+|TWEN|STIN|LNC\d|MO\d\w|GLAS|CIRA|ZLIN|ROBN)$/,
+  ],
+]
 
-const QUAD = list('B741 B742 B743 B744 B748 BLCF A388 A380 A342 A343 A345 A346 IL96 B74S B74R')
-const WIDE = list(
-  `B762 B763 B764 B772 B77L B77W B773 B788 B789 B78X B703
-   A306 A30B A310 A332 A333 A338 A339 A359 A35K A330 A340 A350 A3ST
-   DC10 MD11 L101 IL86 IL76 B77F A124 AN12 C5M`,
-)
-const REGIONAL = list(
-  `E170 E75L E75S E190 E195 E290 E295 E135 E145 E45X E35L E50P E55P
-   CRJ1 CRJ2 CRJ7 CRJ9 CRJX CRJ5 BCS1 BCS3 A220 SU95 RJ85 RJ1H RJ70 B461 B462 B463 F100 F70 F28`,
-)
-const PROP = list(
-  `DH8A DH8B DH8C DH8D AT43 AT44 AT45 AT46 AT72 AT73 AT75 AT76 SF34 SB20 JS31 JS32 JS41
-   BE20 BE30 BE9L BE99 B190 PC12 C208 C172 C182 C206 C210 C402 C441 PA28 PA31 PA32 PA34 PA44 PA46 SR20 SR22 BE35 BE36 BE58 TBM7 TBM8 TBM9 DA40 DA42 DHC6 DHC2 DHC3 D328 SW4 SW3 AC90 AC95 E120 L410 AN24 AN26 AN28 AN32 A748 C130 C30J F27 F50 F60 SH36 SH33 DC3 DC6 B06 R44 R22 EC35 H60 S76 AS50 A139 B407 B412 B429`,
-)
-// Light jets / bizjets are closest to the regional model.
-const BIZ = list(
-  'C25A C25B C25C C510 C525 C550 C560 C56X C680 C700 C750 CL30 CL35 CL60 GLF4 GLF5 GLF6 GLEX FA7X FA8X FA50 FA20 LJ35 LJ45 LJ60 H25B HDJT PRM1 ASTR',
-)
-
-/** ICAO type designator to model class; unknown types default to narrow. */
+/** ICAO type designator to model class; unknown or unlisted types give 'unknown'. */
 export function aircraftClassFor(typeCode: string): AircraftClass {
   const t = typeCode.trim().toUpperCase()
-  if (!t) return 'narrow'
-  if (QUAD.has(t)) return 'quad'
-  if (WIDE.has(t)) return 'wide'
-  if (PROP.has(t)) return 'prop'
-  if (REGIONAL.has(t) || BIZ.has(t)) return 'regional'
-  return 'narrow'
+  if (!t) return 'unknown'
+  for (const [cls, re] of RULES) if (re.test(t)) return cls
+  // Common airliner families by prefix (A19N/A20N/A21N, A318-A321, B73x/B37M/B38M/B39M, MD8x, B72x, DC9).
+  if (
+    /^(A3[12]\d|A[12][0-9]N|B73[0-9A-Z]|B3[789]M|B72\d|MD[89]\d|DC9\d?|B71\d|B75\d|C919|MC21|TU\d+|A20N|A21N)$/.test(
+      t,
+    )
+  )
+    return 'narrow'
+  if (/^[A-Z]{1,2}\d{1,3}[A-Z]?$/.test(t) && /^(B7|A3|MD|DC|IL|TU)/.test(t)) return 'narrow'
+  return 'unknown'
+}
+
+/**
+ * OpenSky ADS-B emitter category (0..20) to class, used when the type code is unknown.
+ * 2 light, 3 small, 4 large, 5 high-vortex large, 6 heavy, 7 high performance, 8 rotorcraft.
+ */
+export function classFromCategory(category: number | undefined): AircraftClass {
+  switch (category) {
+    case 2:
+    case 9: // glider
+    case 12: // ultralight
+      return 'piston'
+    case 3:
+      return 'bizjet'
+    case 4:
+      return 'narrow'
+    case 5:
+      return 'wide'
+    case 6:
+      return 'wide'
+    case 7:
+      return 'bizjet'
+    case 8:
+      return 'heli'
+    default:
+      return 'unknown'
+  }
+}
+
+/** Type code wins; the emitter category only fills in when the type is missing/unrecognised. */
+export function resolveClass(typeCode: string, category?: number): AircraftClass {
+  const byType = aircraftClassFor(typeCode)
+  return byType !== 'unknown' ? byType : classFromCategory(category)
 }

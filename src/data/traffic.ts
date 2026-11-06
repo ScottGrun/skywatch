@@ -1,3 +1,4 @@
+import { resolveClass } from '../core/aircraftClass.ts'
 import { airlineFromCallsign } from '../core/airlines.ts'
 import { classify, etaMinutes, phase } from '../core/classify.ts'
 import { Track, type Report } from '../core/deadReckon.ts'
@@ -21,6 +22,7 @@ interface StateRow {
   track: number
   vrMs: number
   onGround: boolean
+  category?: number
 }
 interface StatesBody {
   time: number
@@ -31,6 +33,7 @@ interface StatesBody {
 interface Entry {
   id: string
   callsign: string
+  emitterCat?: number
   track: Track
   seenMs: number // last time present in a response
   reportMs: number // last time the position actually changed
@@ -106,6 +109,7 @@ export function createTraffic(airport: Airport, opts: TrafficOptions = {}): Traf
         entries.set(s.icao24, {
           id: s.icao24,
           callsign: s.callsign,
+          emitterCat: s.category,
           track: new Track(report),
           seenMs: t,
           reportMs: t,
@@ -114,6 +118,7 @@ export function createTraffic(airport: Airport, opts: TrafficOptions = {}): Traf
         const prev = e.track.latest
         e.seenMs = t
         e.callsign = s.callsign || e.callsign
+        e.emitterCat = s.category ?? e.emitterCat
         // OpenSky repeats stale vectors; only restart dead reckoning on a real change.
         if (
           prev.lat !== report.lat ||
@@ -220,7 +225,7 @@ export function createTraffic(airport: Airport, opts: TrafficOptions = {}): Traf
           category,
           phase: phase(category, input),
           typeCode: meta?.typeCode ?? '',
-          aircraftClass: meta?.aircraftClass ?? 'narrow',
+          aircraftClass: resolveClass(meta?.typeCode ?? '', e.emitterCat),
           airline: airlineFromCallsign(e.callsign) || meta?.operator || '',
           origin,
           dest,

@@ -28,7 +28,16 @@ export interface Airport {
   runways: Runway[] // may be empty → scene draws fallback layout
 }
 
-export type AircraftClass = 'narrow' | 'wide' | 'quad' | 'regional' | 'prop'
+export type AircraftClass =
+  | 'narrow'
+  | 'wide'
+  | 'quad'
+  | 'regional'
+  | 'turboprop'
+  | 'piston'
+  | 'bizjet'
+  | 'heli'
+  | 'unknown'
 export type Category = 'ARR' | 'DEP' | 'OVR'
 export type Phase =
   | 'Takeoff roll'

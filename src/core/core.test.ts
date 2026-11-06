@@ -5,7 +5,7 @@ import { hexCss, rampHex } from './ramp.ts'
 import { classify, etaMinutes, phase } from './classify.ts'
 import { Track, project, type Report } from './deadReckon.ts'
 import { airlineFromCallsign } from './airlines.ts'
-import { aircraftClassFor } from './aircraftClass.ts'
+import { aircraftClassFor, classFromCategory, resolveClass } from './aircraftClass.ts'
 import { searchAirports } from './search.ts'
 import type { Airport } from '../types.ts'
 
@@ -135,9 +135,42 @@ describe('lookups', () => {
     expect(aircraftClassFor('A388')).toBe('quad')
     expect(aircraftClassFor('B789')).toBe('wide')
     expect(aircraftClassFor('E190')).toBe('regional')
-    expect(aircraftClassFor('DH8D')).toBe('prop')
+    expect(aircraftClassFor('DH8D')).toBe('turboprop')
+    expect(aircraftClassFor('AT76')).toBe('turboprop')
+    expect(aircraftClassFor('PC12')).toBe('turboprop')
     expect(aircraftClassFor('A320')).toBe('narrow')
-    expect(aircraftClassFor('')).toBe('narrow')
+    expect(aircraftClassFor('A21N')).toBe('narrow')
+    expect(aircraftClassFor('B38M')).toBe('narrow')
+    expect(aircraftClassFor('C172')).toBe('piston')
+    expect(aircraftClassFor('SR22')).toBe('piston')
+    expect(aircraftClassFor('BE58')).toBe('piston')
+    expect(aircraftClassFor('PA28')).toBe('piston')
+    expect(aircraftClassFor('C25B')).toBe('bizjet')
+    expect(aircraftClassFor('GLF5')).toBe('bizjet')
+    expect(aircraftClassFor('CL35')).toBe('bizjet')
+    expect(aircraftClassFor('FA7X')).toBe('bizjet')
+    expect(aircraftClassFor('CRJ9')).toBe('regional')
+    expect(aircraftClassFor('E75L')).toBe('regional')
+    expect(aircraftClassFor('EC35')).toBe('heli')
+    expect(aircraftClassFor('B407')).toBe('heli')
+    expect(aircraftClassFor('R44')).toBe('heli')
+    expect(aircraftClassFor('A139')).toBe('heli')
+    expect(aircraftClassFor('')).toBe('unknown')
+    expect(aircraftClassFor('ZZZZ')).toBe('unknown')
+    expect(aircraftClassFor('E55P')).toBe('bizjet')
+    expect(aircraftClassFor('H25B')).toBe('bizjet')
+  })
+  it('class from emitter category, type wins', () => {
+    expect(classFromCategory(8)).toBe('heli')
+    expect(classFromCategory(6)).toBe('wide')
+    expect(classFromCategory(2)).toBe('piston')
+    expect(classFromCategory(3)).toBe('bizjet')
+    expect(classFromCategory(4)).toBe('narrow')
+    expect(classFromCategory(0)).toBe('unknown')
+    expect(classFromCategory(undefined)).toBe('unknown')
+    expect(resolveClass('', 8)).toBe('heli')
+    expect(resolveClass('A320', 8)).toBe('narrow')
+    expect(resolveClass('ZZZZ', 6)).toBe('wide')
   })
 })
 

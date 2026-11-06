@@ -43,6 +43,12 @@ describe('mapStates', () => {
     })
     expect(out.states[1].altM).toBe(777)
   })
+  it('passes through the emitter category (field 17) when present', () => {
+    const r = row()
+    r[17] = 8
+    expect(mapStates({ time: 1, states: [r] }).states[0].category).toBe(8)
+    expect(mapStates({ time: 1, states: [row({ 17: 0 })] }).states[0].category).toBe(0)
+  })
   it('handles null states', () => {
     expect(mapStates({ time: 1, states: null }).states).toEqual([])
   })
@@ -60,6 +66,11 @@ describe('roundBbox', () => {
 })
 
 describe('opensky client', () => {
+  it('requests extended states', async () => {
+    const f = vi.fn(async () => ok({ time: 1, states: [] }))
+    await createOpenSkyClient({ fetch: f }).getStates(BBOX)
+    expect(String((f.mock.calls[0] as unknown[])[0])).toContain('extended=1')
+  })
   it('caches for ttl then refetches', async () => {
     let t = 0
     const f = vi.fn(async () => ok({ time: 1, states: [row()] }))

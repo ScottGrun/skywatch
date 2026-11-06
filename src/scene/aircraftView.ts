@@ -1,7 +1,8 @@
 import * as THREE from 'three'
 import { rampHex, hexCss } from '../core/ramp'
 import type { Aircraft, AircraftClass } from '../types'
-import { aircraftGeometry } from './aircraftGeometry'
+import { aircraftGeometry, aircraftRotors } from './aircraftGeometry'
+import { advanceSpin, classScale } from './classScale'
 import {
   ALT_EXAG,
   D2R,
@@ -9,6 +10,8 @@ import {
   DROP_OPACITY,
   EMISSIVE,
   FT_TO_KM,
+  GROUND_COLOR,
+  GROUND_EMISSIVE,
   KT_TO_KMS,
   PITCH_MAX,
   ROLL_GAIN,
@@ -66,6 +69,8 @@ export class AircraftView {
   scale = 1
   camDist = 0
   colorHex = 0
+  /** False for un-hovered, unselected ground traffic (scene hides the HTML label). */
+  showLabel = true
 
   private mat = new THREE.MeshStandardMaterial({
     color: 0xffffff,
@@ -75,7 +80,15 @@ export class AircraftView {
     metalness: 0.1,
     flatShading: true,
   })
+  private body = new THREE.Group()
   private mesh: THREE.Mesh
+  private rotors: { mesh: THREE.Mesh; axis: 'x' | 'y' | 'z'; rate: number; angle: number }[] = []
+  private rotorMat = new THREE.MeshBasicMaterial({
+    transparent: true,
+    opacity: 0.62,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+  })
   private drop: THREE.Line
   private dot: THREE.Mesh
   private trail: THREE.Line
@@ -99,7 +112,8 @@ export class AircraftView {
 
   constructor(kit: ViewKit, overlay: HTMLElement) {
     this.mesh = new THREE.Mesh(aircraftGeometry('narrow'), this.mat)
-    this.mesh.rotation.order = 'YXZ'
+    this.body.rotation.order = 'YXZ'
+    this.body.add(this.mesh)
     this.drop = new THREE.Line(kit.dropGeo, this.dropMat)
     this.drop.frustumCulled = false
     this.dot = new THREE.Mesh(kit.dotGeo, this.dotMat)
@@ -108,7 +122,7 @@ export class AircraftView {
     tg.setAttribute('color', this.colA)
     this.trail = new THREE.Line(tg, kit.trailMat)
     this.trail.frustumCulled = false
-    this.root.add(this.mesh, this.drop, this.dot, this.trail)
+    this.root.add(this.body, this.drop, this.dot, this.trail)
     this.label = new AircraftLabel(overlay)
   }
 
@@ -125,11 +139,22 @@ export class AircraftView {
     this.root.visible = true
   }
 
-  update(ac: Aircraft, c: FrameCtx, selected: boolean): void {
-    if (this.cls !== ac.aircraftClass) {
-      this.cls = ac.aircraftClass
-      this.mesh.geometry = aircraftGeometry(ac.aircraftClass)
-    }
+  private bindClass(cls: AircraftClass): void {
+    this.cls = cls
+    this.mesh.geometry = aircraftGeometry(cls)
+    for (const r of this.rotors) this.body.remove(r.mesh)
+    this.rotors = aircraftRotors(cls).map((r) => {
+      const mesh = new THREE.Mesh(r.geo, this.rotorMat)
+      mesh.position.set(r.pos[0], r.pos[1], r.pos[2])
+      this.body.add(mesh)
+      return { mesh, axis: r.axis, rate: r.rate, angle: 0 }
+    })
+  }
+
+  update(ac: Aircraft, c: FrameCtx, selected: boolean, hovered = false): void {
+    if (this.cls !== ac.aircraftClass) this.bindClass(ac.aircraftClass)
+    const muted = ac.onGround && !selected && !hovered
+    this.showLabel = !muted
     const altKm = Math.max(0, ac.altFt - c.elevFt) * FT_TO_KM * ALT_EXAG
     const x = ac.e
     const y = altKm
@@ -137,18 +162,21 @@ export class AircraftView {
     this.x = x
     this.y = y
     this.z = z
-    const col = rampHex(ac.altFt)
+    const col = muted ? GROUND_COLOR : rampHex(ac.altFt)
     if (col !== this.colorHex) {
       this.colorHex = col
       this.mat.color.setHex(col)
       this.mat.emissive.setHex(col)
+      this.mat.emissiveIntensity = muted ? GROUND_EMISSIVE : EMISSIVE
+      this.rotorMat.color.setHex(col)
       this.dropMat.color.setHex(col)
       this.dotMat.color.setHex(col)
     }
 
     this.camDist = Math.hypot(c.cam.x - x, c.cam.y - y, c.cam.z - z)
     const sc = clamp(this.camDist / SCALE_DIV, SCALE_MIN, SCALE_MAX)
-    this.scale = sc
+    const size = classScale(ac.aircraftClass)
+    this.scale = sc * size
 
     // Orientation: yaw from track, pitch from climb angle, roll from smoothed turn rate.
     const dtT = (c.nowMs - this.prevMs) / 1000
@@ -164,21 +192,29 @@ export class AircraftView {
       (ac.vsFpm / 60) * FT_TO_KM * ALT_EXAG,
       Math.max(ac.gsKt, 60) * KT_TO_KMS,
     )
-    this.mesh.position.set(x, y, z)
-    this.mesh.scale.setScalar(sc)
-    this.mesh.rotation.set(clamp(climb, -PITCH_MAX, PITCH_MAX), -ac.trackDeg * D2R, this.bank)
+    this.body.position.set(x, y, z)
+    this.body.scale.setScalar(sc * size)
+    for (const r of this.rotors) {
+      r.angle = advanceSpin(r.angle, r.rate, c.dt)
+      r.mesh.rotation[r.axis] = r.angle
+    }
+    this.body.rotation.set(clamp(climb, -PITCH_MAX, PITCH_MAX), -ac.trackDeg * D2R, this.bank)
 
     this.drop.position.set(x, 0, z)
     this.drop.scale.y = Math.max(y, 1e-4)
-    this.drop.visible = y > 0.05
+    this.drop.visible = y > 0.05 && !ac.onGround
+    this.dot.visible = !ac.onGround
     this.dot.position.set(x, 0.08, z)
-    this.dot.scale.setScalar(sc * 0.8)
+    this.dot.scale.setScalar(sc * size * 0.8)
 
-    this.writeTrail(c.nowMs, x, y, z, tmpC.setHex(col))
+    this.trail.visible = !ac.onGround
+    if (ac.onGround) this.hN = 0
+    else this.writeTrail(c.nowMs, x, y, z, tmpC.setHex(col))
 
     const arrow = ac.vsFpm > 300 ? '↑' : ac.vsFpm < -300 ? '↓' : ''
     const fl = String(Math.round(Math.max(0, ac.altFt) / 100)).padStart(3, '0') + arrow
-    this.label.set(ac.callsign || ac.id.toUpperCase(), fl, hexCss(col), selected)
+    if (this.showLabel)
+      this.label.set(ac.callsign || ac.id.toUpperCase(), fl, hexCss(col), selected)
   }
 
   private writeTrail(nowMs: number, x: number, y: number, z: number, cur: THREE.Color): void {
@@ -221,6 +257,7 @@ export class AircraftView {
   dispose(): void {
     this.trail.geometry.dispose()
     this.mat.dispose()
+    this.rotorMat.dispose()
     this.dropMat.dispose()
     this.dotMat.dispose()
     this.label.remove()
