@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import { rampHex, hexCss } from '../core/ramp'
 import type { Aircraft, AircraftClass } from '../types'
 import { aircraftGeometry, aircraftRotors } from './aircraftGeometry'
-import { advanceSpin, classScale, modelScale } from './classScale'
+import { advanceSpin, classScale, effectiveSize, modelScale, trueLengthKm } from './classScale'
 import { getModel, type ModelInfo } from './modelLoader'
 import { modelNameFor } from './modelMap'
 import type { RotorSpec } from './propGeometry'
@@ -17,6 +17,7 @@ import {
   GROUND_EMISSIVE,
   KT_TO_KMS,
   PITCH_MAX,
+  RING_MIN_ANGLE,
   ROLL_GAIN,
   ROLL_MAX,
   ROLL_SMOOTH,
@@ -118,6 +119,7 @@ export class AircraftView {
   private modelName: string | null = null
   private modelBound = false
   private size = 1
+  private trueKm = 0.038
   /** Lowest model point in model units (negative: the origin is mid-fuselage). */
   private footY = 0
   private posA = new THREE.BufferAttribute(new Float32Array(TRAIL_POINTS * 3), 3)
@@ -181,6 +183,7 @@ export class AircraftView {
     this.mesh.geometry = aircraftGeometry(cls)
     this.footY = footOf(this.mesh.geometry)
     this.size = classScale(cls)
+    this.trueKm = trueLengthKm(cls)
     this.setRotors(aircraftRotors(cls))
   }
 
@@ -188,6 +191,7 @@ export class AircraftView {
     this.mesh.geometry = m.geo
     this.footY = footOf(m.geo)
     this.size = modelScale(m.lengthM)
+    this.trueKm = m.lengthM / 1000
     this.setRotors(m.rotors)
   }
 
@@ -241,8 +245,11 @@ export class AircraftView {
 
     this.camDist = Math.hypot(c.cam.x - x, c.cam.y - y, c.cam.z - z)
     const sc = clamp(this.camDist / SCALE_DIV, SCALE_MIN, SCALE_MAX)
-    const size = this.size
-    this.scale = sc * size
+    // Drawn length (km): true size near the camera, exaggerated size far away.
+    const len = effectiveSize(this.camDist, this.trueKm, sc * this.size)
+    this.scale = len
+    // Rings stay readable when the true-size plane is only a few pixels long.
+    const ringLen = Math.max(len, this.camDist * RING_MIN_ANGLE)
 
     // Orientation: yaw from track, pitch from climb angle, roll from smoothed turn rate.
     const dtT = (c.nowMs - this.prevMs) / 1000
@@ -259,8 +266,8 @@ export class AircraftView {
       Math.max(ac.gsKt, 60) * KT_TO_KMS,
     )
     // Ground traffic: lift the model so its lowest point (wheels) rests on the surface.
-    this.body.position.set(x, ac.onGround ? y - this.footY * sc * size : y, z)
-    this.body.scale.setScalar(sc * size)
+    this.body.position.set(x, ac.onGround ? y - this.footY * len : y, z)
+    this.body.scale.setScalar(len)
     for (const r of this.rotors) {
       r.angle = advanceSpin(r.angle, r.rate, c.dt)
       r.mesh.rotation[r.axis] = r.angle
@@ -274,10 +281,10 @@ export class AircraftView {
     this.dot.position.set(x, g + 0.08, z)
     if (selected) {
       const p = 0.5 + 0.5 * Math.sin((c.nowMs / SEL_RING_PERIOD_MS) * Math.PI * 2)
-      this.dot.scale.setScalar(sc * size * 0.8 * (SEL_RING_SCALE + SEL_RING_AMP * (p * 2 - 1)))
+      this.dot.scale.setScalar(ringLen * 0.8 * (SEL_RING_SCALE + SEL_RING_AMP * (p * 2 - 1)))
       this.dotMat.opacity = SEL_RING_OPACITY[0] + (SEL_RING_OPACITY[1] - SEL_RING_OPACITY[0]) * p
     } else {
-      this.dot.scale.setScalar(sc * size * 0.8)
+      this.dot.scale.setScalar(ringLen * 0.8)
       this.dotMat.opacity = DOT_OPACITY
     }
 

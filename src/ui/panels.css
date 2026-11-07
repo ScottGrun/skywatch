@@ -216,15 +216,15 @@
 }
 .views {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 4px;
 }
 .views button {
-  padding: 8px;
+  padding: 8px 2px;
   border: 1px solid var(--ctl);
   border-radius: 3px;
   font: 600 10px var(--mono);
-  letter-spacing: 0.1em;
+  letter-spacing: 0.04em;
   color: var(--body);
 }
 .views button:hover {

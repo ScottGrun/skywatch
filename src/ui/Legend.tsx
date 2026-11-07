@@ -5,6 +5,7 @@ const VIEWS: [ViewPreset, string][] = [
   ['overview', 'OVERVIEW'],
   ['top', 'TOP'],
   ['side', 'SIDE'],
+  ['airport', 'AIRPORT'],
 ]
 
 interface Props {

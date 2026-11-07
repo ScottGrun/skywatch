@@ -30,6 +30,7 @@ import { createOverlay, createStaticLabels, placeStatic, type StaticLabel } from
 import { createHover } from './hover'
 import { createHistory } from './history'
 import { createLineup } from './lineup'
+import { airportFrame } from './airportFrame'
 import { pickNearest } from './picking'
 import { radialFog, setFogColor } from './radialFog'
 import { applyOverlayVars, pal, PALETTES, setSceneTheme } from './theme'
@@ -448,7 +449,10 @@ export function createFlightScene(container: HTMLElement): FlightScene {
     },
     view(preset: ViewPreset) {
       setFollow(false)
-      rig.preset(preset)
+      if (preset === 'airport' && airport) {
+        const f = airportFrame(airport)
+        rig.airportView(f.e, -f.n, f.r)
+      } else rig.preset(preset === 'airport' ? 'overview' : preset)
     },
     on,
     dispose() {

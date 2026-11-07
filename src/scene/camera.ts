@@ -2,7 +2,10 @@ import * as THREE from 'three'
 import type { ViewPreset } from '../types'
 import { groundY } from './terrain'
 import {
+  AIRPORT_VIEW_PHI,
   AUTO_ORBIT_RAD_S,
+  NEAR_MAX,
+  NEAR_MIN,
   EASE,
   EASE_FOLLOW,
   FOLLOW_PHI,
@@ -28,9 +31,11 @@ interface Pose {
 
 const HOME_POSE: Pose = { ...HOME, tx: 0, ty: 0, tz: 0 }
 
+const clampNear = (v: number) => Math.min(NEAR_MAX, Math.max(NEAR_MIN, v))
+
 /** Orbit camera around a target, eased toward a goal pose. */
 export class CameraRig {
-  readonly camera = new THREE.PerspectiveCamera(FOV, 1, 0.5, 2000)
+  readonly camera = new THREE.PerspectiveCamera(FOV, 1, NEAR_MAX, 2000)
   private cam: Pose = { ...HOME_POSE }
   private goal: Pose = { ...HOME_POSE }
   following = false
@@ -56,6 +61,12 @@ export class CameraRig {
   /** Ease back to the default view over the airport and start the idle orbit. */
   home(): void {
     this.reset()
+    this.autoOrbit = true
+  }
+
+  /** Ease to a low-oblique close view of the field: target (world x/z) and orbit distance. */
+  airportView(x: number, z: number, r: number): void {
+    Object.assign(this.goal, HOME_POSE, { tx: x, tz: z, r, phi: AIRPORT_VIEW_PHI })
     this.autoOrbit = true
   }
 
@@ -127,6 +138,11 @@ export class CameraRig {
       c.tz + c.r * sp * Math.cos(c.theta),
     )
     this.camera.lookAt(c.tx, c.ty, c.tz)
+    const near = clampNear(c.r * 0.02)
+    if (Math.abs(near - this.camera.near) > this.camera.near * 0.05) {
+      this.camera.near = near
+      this.camera.updateProjectionMatrix()
+    }
     this.camera.updateMatrixWorld()
   }
 }

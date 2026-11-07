@@ -86,7 +86,14 @@ export const TOP = { phi: 0.06, r: 200 }
 export const SIDE = { phi: 1.45, r: 150 }
 export const PHI_MIN = 0.06
 export const PHI_MAX = 1.5
-export const R_MIN = 3
+export const R_MIN = 0.8
+/** Camera near plane (km): scales with orbit distance so close views do not clip. */
+export const NEAR_MIN = 0.015
+export const NEAR_MAX = 0.5
+/** AIRPORT preset: orbit distance = runway extent * this, and tilt. */
+export const AIRPORT_VIEW_K = 1.3
+export const AIRPORT_VIEW_MIN_R = 2
+export const AIRPORT_VIEW_PHI = 1.1
 export const R_MAX = 320
 export const EASE = 6
 export const EASE_FOLLOW = 10
@@ -107,6 +114,25 @@ export const CLASS_SIZE: Readonly<Record<string, number>> = {
   unknown: 0.8,
 }
 export const CLASS_SIZE_FLOOR = 0.52
+/** Real airframe length (m) by class, for classes without a baked model. */
+export const TRUE_LENGTH_M: Readonly<Record<string, number>> = {
+  quad: 70,
+  wide: 62,
+  narrow: 38,
+  regional: 30,
+  turboprop: 25,
+  bizjet: 20,
+  heli: 14,
+  piston: 8.5,
+  unknown: 35,
+}
+/** Camera distance (km) within which aircraft are drawn at true size, and beyond which at the exaggerated size. */
+export const TRUE_SIZE_NEAR_KM = 3
+export const TRUE_SIZE_FAR_KM = 30
+/** Smallest on-screen half-length (px) used for picking, so tiny true-size aircraft stay clickable. */
+export const PICK_MIN_PX = 14
+/** Ground/selection rings never get smaller than this angular size (fraction of camera distance). */
+export const RING_MIN_ANGLE = 0.004
 
 // Ground aircraft
 export const GROUND_COLOR = 0x5b6670

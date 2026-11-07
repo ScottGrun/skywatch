@@ -118,7 +118,7 @@ export interface AirspaceStatus {
   note: string
 }
 
-export type ViewPreset = 'overview' | 'top' | 'side'
+export type ViewPreset = 'overview' | 'top' | 'side' | 'airport'
 export type Theme = 'dark' | 'light'
 
 /** Imperative scene handle. Implemented in src/scene/createFlightScene.ts. */
