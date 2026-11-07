@@ -4,14 +4,12 @@ import type { Airport } from '../types'
 import { BG } from './constants'
 import { applyRadialFog } from './radialFog'
 import { terrainY } from './terrain'
+import { terrainBlend, vscale } from './vertical'
 import { tileXToLon, tileYToLat } from './tileMath'
 
-/** 1 = terrain relief, 0 = flat (shared by every ground material so the toggle is instant). */
-export const terrainBlend = { value: 1 }
 const SKIRT_KM = 1.2
 /** Hillshade: light from the north-west, 45 degrees up (scene -Z is north). */
 const LIGHT = new THREE.Vector3(-0.5, 0.707, -0.5).normalize()
-const FLAT_NDL = LIGHT.y
 const SHADE_STRENGTH = 0.75
 
 export interface TileSpec {
@@ -27,7 +25,7 @@ export interface TileSpec {
 /**
  * Tile mesh geometry in world coordinates (x = east, z = -north). Heights come from the shared
  * terrain sampler, so neighbouring tiles get identical edge vertices; a downward skirt hides any
- * residual crack. Attribute `aShade` is a precomputed hillshade factor (1 = flat ground).
+ * residual crack. Heights are at x1 vertical scale (the parent group scales Y); `aSlope` holds the x1 ground slopes (dy/de, dy/dn) so the shader shades for the live scale.
  */
 export function buildTileGeometry(t: TileSpec): THREE.BufferGeometry {
   const { ap, z, tx, ty, segs, dropY } = t
@@ -35,7 +33,7 @@ export function buildTileGeometry(t: TileSpec): THREE.BufferGeometry {
   const total = S * S + 4 * segs
   const pos = new Float32Array(total * 3)
   const uv = new Float32Array(total * 2)
-  const shade = new Float32Array(total)
+  const slope = new Float32Array(total * 2)
   const idx: number[] = []
   const p0 = toLocal(ap, tileYToLat(ty, z), tileXToLon(tx, z))
   const p1 = toLocal(ap, tileYToLat(ty + 1, z), tileXToLon(tx + 1, z))
@@ -51,8 +49,8 @@ export function buildTileGeometry(t: TileSpec): THREE.BufferGeometry {
       uv[v * 2 + 1] = 1 - j / segs
       const sx = (terrainY(loc.e + d, loc.n) - terrainY(loc.e - d, loc.n)) / (2 * d)
       const sn = (terrainY(loc.e, loc.n + d) - terrainY(loc.e, loc.n - d)) / (2 * d)
-      const ndl = (-sx * LIGHT.x + LIGHT.y + sn * LIGHT.z) / Math.hypot(sx, 1, sn)
-      shade[v] = 1 + SHADE_STRENGTH * (Math.min(1.9, Math.max(0.15, ndl / FLAT_NDL)) - 1)
+      slope[v * 2] = sx
+      slope[v * 2 + 1] = sn
       if (j < segs && i < segs) idx.push(v, v + S, v + 1, v + 1, v + S, v + S + 1)
     }
   }
@@ -70,7 +68,8 @@ export function buildTileGeometry(t: TileSpec): THREE.BufferGeometry {
     pos[s * 3 + 2] = pos[v * 3 + 2]
     uv[s * 2] = uv[v * 2]
     uv[s * 2 + 1] = uv[v * 2 + 1]
-    shade[s] = shade[v]
+    slope[s * 2] = slope[v * 2]
+    slope[s * 2 + 1] = slope[v * 2 + 1]
   })
   ring.forEach((v, k) => {
     const k2 = (k + 1) % ring.length
@@ -80,7 +79,7 @@ export function buildTileGeometry(t: TileSpec): THREE.BufferGeometry {
   const g = new THREE.BufferGeometry()
   g.setAttribute('position', new THREE.BufferAttribute(pos, 3))
   g.setAttribute('uv', new THREE.BufferAttribute(uv, 2))
-  g.setAttribute('aShade', new THREE.BufferAttribute(shade, 1))
+  g.setAttribute('aSlope', new THREE.BufferAttribute(slope, 2))
   g.setIndex(idx)
   return g
 }
@@ -103,15 +102,20 @@ export function createTerrainMaterial(flatY: number): TerrainMaterial {
     fog.call(mat, shader, renderer)
     shader.uniforms.uTerr = terrainBlend
     shader.uniforms.uFlatY = { value: flatY }
+    shader.uniforms.uVK = vscale.uniform
     shader.uniforms.uHole = { value: hole }
     shader.vertexShader = shader.vertexShader
       .replace(
         '#include <common>',
-        '#include <common>\nattribute float aShade;\nvarying float vShade;\nuniform float uTerr;\nuniform float uFlatY;',
+        '#include <common>\nattribute vec2 aSlope;\nvarying float vShade;\nuniform float uTerr;\nuniform float uFlatY;\nuniform float uVK;',
       )
       .replace(
         '#include <begin_vertex>',
-        '#include <begin_vertex>\ntransformed.y = mix(uFlatY, transformed.y, uTerr);\nvShade = mix(1.0, aShade, uTerr);',
+        `#include <begin_vertex>
+transformed.y = mix(uFlatY, transformed.y, uTerr);
+vec2 sl = aSlope * uVK;
+float ndl = (-sl.x * ${LIGHT.x.toFixed(4)} + ${LIGHT.y.toFixed(4)} + sl.y * ${LIGHT.z.toFixed(4)}) / length(vec3(sl.x, 1.0, sl.y));
+vShade = mix(1.0, 1.0 + ${SHADE_STRENGTH} * (clamp(ndl / ${LIGHT.y.toFixed(4)}, 0.15, 1.9) - 1.0), uTerr);`,
       )
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', '#include <common>\nvarying float vShade;\nuniform vec4 uHole;')

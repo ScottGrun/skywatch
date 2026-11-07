@@ -21,6 +21,8 @@ import {
 } from './core/filter.ts'
 import { Attribution } from './ui/Attribution.tsx'
 import { DetailsCard } from './ui/DetailsCard.tsx'
+import { clampVScale } from './scene/vertical.ts'
+import { VSCALE_DEFAULT } from './scene/constants.ts'
 import { Legend } from './ui/Legend.tsx'
 import { TopBar } from './ui/TopBar.tsx'
 import { TrafficList } from './ui/TrafficList.tsx'
@@ -82,6 +84,14 @@ export function App() {
       return localStorage.getItem('tracon3d.terrain') !== '0'
     } catch {
       return true
+    }
+  })
+  // The scene persists this itself (same key); App mirrors it for the slider.
+  const [vscale, setVscale] = useState(() => {
+    try {
+      return clampVScale(Number(localStorage.getItem('tracon3d.vscale') ?? VSCALE_DEFAULT))
+    } catch {
+      return VSCALE_DEFAULT
     }
   })
   const [airspace, setAirspaceStatus] = useState<AirspaceStatus>(AIRSPACE_OFF)
@@ -193,6 +203,7 @@ export function App() {
     }
   }, [airspaceOn])
   useEffect(() => sceneRef.current?.setTerrain(terrainOn), [terrainOn])
+  useEffect(() => sceneRef.current?.setVerticalScale(vscale), [vscale])
   // Real track history for the selected aircraft (refetched every 60 s while selected).
   useEffect(() => {
     if (!selectedId) return
@@ -265,6 +276,8 @@ export function App() {
         onAirspace={setAirspaceOn}
         terrainOn={terrainOn}
         onTerrain={setTerrainOn}
+        vscale={vscale}
+        onVscale={setVscale}
       />
       <Attribution text={attribution} />
     </div>

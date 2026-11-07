@@ -3,7 +3,8 @@ import { toLocal, type LatLon } from '../core/geo'
 import { rampHex } from '../core/ramp'
 import type { HistoryPoint } from '../types'
 import type { AircraftView } from './aircraftView'
-import { ALT_EXAG, FT_TO_KM } from './constants'
+import { FT_TO_KM } from './constants'
+import { vscale } from './vertical'
 
 export const HISTORY_MAX_POINTS = 1000
 const OLDEST_FADE = 0.45 // brightness at the oldest vertex; 1 at the newest
@@ -58,7 +59,7 @@ export function createHistory(scene: THREE.Scene): HistoryHandle {
         const { e, n: north } = toLocal(origin, p.lat, p.lon)
         const o = i * 3
         pa[o] = e
-        pa[o + 1] = Math.max(0, p.altFt - elevFt) * FT_TO_KM * ALT_EXAG
+        pa[o + 1] = Math.max(0, p.altFt - elevFt) * FT_TO_KM
         pa[o + 2] = -north
         c.setHex(rampHex(p.altFt))
         const f = OLDEST_FADE + (1 - OLDEST_FADE) * (i / Math.max(1, pts.length - 1))
@@ -79,7 +80,7 @@ export function createHistory(scene: THREE.Scene): HistoryHandle {
       const ca = colA.array as Float32Array
       const o = n * 3
       pa[o] = view.x
-      pa[o + 1] = view.y
+      pa[o + 1] = view.y / vscale.k
       pa[o + 2] = view.z
       c.setHex(view.colorHex < 0 ? 0xffffff : view.colorHex)
       ca[o] = c.r
@@ -88,6 +89,7 @@ export function createHistory(scene: THREE.Scene): HistoryHandle {
       posA.needsUpdate = true
       colA.needsUpdate = true
       geo.setDrawRange(0, n + 1)
+      line.scale.y = vscale.k
       line.visible = true
     },
     dispose() {

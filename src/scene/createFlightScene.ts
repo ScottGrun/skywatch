@@ -1,11 +1,14 @@
 import * as THREE from 'three'
+import { toLocal } from '../core/geo'
 import type { Aircraft, Airport, FlightScene, TrafficSource, ViewPreset } from '../types'
+import type { Rect } from './airspaceLabels'
 import { createAirspaceControl } from './airspaceControl'
 import { ViewPool, type FrameCtx } from './aircraftView'
 import { disposeAircraftGeometries } from './aircraftGeometry'
 import { CameraRig } from './camera'
 import {
   BG,
+  DECOR_LIFT,
   DIR_INTENSITY,
   FOG_FAR,
   FOG_NEAR,
@@ -17,6 +20,11 @@ import {
   HEMI_INTENSITY,
   HEMI_SKY,
   LABEL_MAX_DIST,
+  TERRAIN_RISE_S,
+  TILE_R_FAR,
+  TILE_ZOOM_FAR,
+  VSCALE_DEFAULT,
+  VSCALE_EASE_S,
 } from './constants'
 import { bindControls } from './controls'
 import { createOverlay, createStaticLabels, placeStatic, type StaticLabel } from './labels'
@@ -29,8 +37,8 @@ import { projectToScreen, type ScreenPoint } from './projection'
 import { buildRings, type StaticLabelDef } from './rings'
 import { buildRunways, type RunwaysHandle } from './runways'
 import { createSelection } from './selection'
-import { clearTerrain, groundY, setTerrainEnabled } from './terrain'
-import { terrainBlend } from './terrainMesh'
+import { clearTerrain, groundY, tileBox } from './terrain'
+import { clampVScale, setVScale, terrainBlend } from './vertical'
 import { buildTiles, disposeObject } from './tiles'
 
 const TERRAIN_KEY = 'tracon3d.terrain'
@@ -41,6 +49,17 @@ function storedTerrain(): boolean {
     return true
   }
 }
+
+const VSCALE_KEY = 'tracon3d.vscale'
+function storedVScale(): number {
+  try {
+    const v = localStorage.getItem(VSCALE_KEY)
+    return v === null ? VSCALE_DEFAULT : clampVScale(Number(v))
+  } catch {
+    return VSCALE_DEFAULT
+  }
+}
+const smoothstep = (x: number) => x * x * (3 - 2 * x)
 
 const NO_THRESHOLDS: RunwaysHandle['thresholds'] = []
 const EMPTY: Aircraft[] = []
@@ -72,7 +91,11 @@ export function createFlightScene(container: HTMLElement): FlightScene {
 
   const rig = new CameraRig()
   const pool = new ViewPool(scene, overlay)
-  const airspace = createAirspaceControl(scene, overlay)
+  // Everything with height from the map (terrain, decor, airspace) is built at x1 inside this group,
+  // whose scale.y is the live vertical exaggeration. Aircraft live outside so models are not stretched.
+  const vroot = new THREE.Group()
+  scene.add(vroot)
+  const airspace = createAirspaceControl(vroot, overlay)
   const selection = createSelection(scene)
   const history = createHistory(scene)
   const maxAniso = renderer.capabilities.getMaxAnisotropy()
@@ -100,8 +123,12 @@ export function createFlightScene(container: HTMLElement): FlightScene {
   let runways: RunwaysHandle | null = null
   let decor: THREE.Group | null = null
   let terrainOn = storedTerrain()
-  setTerrainEnabled(terrainOn)
-  terrainBlend.value = terrainOn ? 1 : 0
+  let terrainReady = false
+  let blendRaw = 0
+  let vTarget = storedVScale()
+  let vk = vTarget
+  let edgeKm = 400 // distance from the airport to the nearest edge of the outer terrain ring
+  setVScale(vk)
   const selFns = new Set<(id: string | null) => void>()
   const folFns = new Set<(on: boolean) => void>()
 
@@ -155,9 +182,16 @@ export function createFlightScene(container: HTMLElement): FlightScene {
     history.set(null, ZERO, 0)
     clearWorld()
     clearTerrain()
+    terrainReady = false
+    blendRaw = 0
+    terrainBlend.value = 0
+    const ob = tileBox(ap, TILE_ZOOM_FAR, TILE_R_FAR)
+    const sw = toLocal(ap, ob.latMin, ob.lonMin)
+    const ne = toLocal(ap, ob.latMax, ob.lonMax)
+    edgeKm = Math.min(-sw.e, ne.e, -sw.n, ne.n)
     world = new THREE.Group()
-    buildTiles(world, ap, maxAniso, buildDecor)
-    scene.add(world)
+    buildTiles(world, ap, maxAniso, buildDecor, () => (terrainReady = true))
+    vroot.add(world)
     const labelDefs = buildDecor()
     statics = createStaticLabels(overlay, labelDefs)
     airspace.setAirport(ap)
@@ -180,6 +214,7 @@ export function createFlightScene(container: HTMLElement): FlightScene {
 
   // --- frame loop ---
   const ctx: FrameCtx = { nowMs: 0, dt: 0, elevFt: 0, cam: rig.camera.position }
+  const occupied: Rect[] = []
   const seen = new Set<string>()
   const gone: string[] = []
   const sp: ScreenPoint = { x: 0, y: 0, behind: false }
@@ -193,13 +228,39 @@ export function createFlightScene(container: HTMLElement): FlightScene {
     const nowMs = Date.now()
     const acs = airport && traffic ? traffic.snapshot(nowMs) : EMPTY
 
+    // vertical scale and terrain relief easing
+    if (vk !== vTarget) {
+      vk += (vTarget - vk) * (1 - Math.exp(-dt / VSCALE_EASE_S))
+      if (Math.abs(vTarget - vk) < 0.005) vk = vTarget
+      setVScale(vk)
+    }
+    const bt = terrainOn && terrainReady ? 1 : 0
+    if (blendRaw !== bt) {
+      const step = dt / TERRAIN_RISE_S
+      blendRaw = bt > blendRaw ? Math.min(bt, blendRaw + step) : Math.max(bt, blendRaw - step)
+    }
+    terrainBlend.value = smoothstep(blendRaw)
+    vroot.scale.y = vk
+    if (decor) {
+      // Decor drapes the terrain (scaled with the relief) but keeps a constant world-size lift/thickness.
+      const b = Math.max(terrainBlend.value, 1e-3)
+      decor.position.y = DECOR_LIFT / vk
+      decor.scale.y = b
+      if (runways) runways.slabs.scale.y = 1 / (vk * b)
+    }
+
     // camera first (follows last frame's selected position)
     const selView = selId ? (pool.active.get(selId) ?? null) : null
     rig.update(dt, follow && selView ? selView : null)
     const orb = rig.orbitState
     radialFog.center.value.set(orb.x, orb.z)
-    radialFog.near.value = GFOG_NEAR_A + GFOG_NEAR_B * orb.r
-    radialFog.far.value = GFOG_FAR_A + GFOG_FAR_B * orb.r
+    // Fog is fully opaque before the terrain's outer edge so relief never ends visibly.
+    const far = Math.max(
+      60,
+      Math.min(GFOG_FAR_A + GFOG_FAR_B * orb.r, edgeKm - Math.hypot(orb.x, orb.z) - 5),
+    )
+    radialFog.far.value = far
+    radialFog.near.value = Math.min(GFOG_NEAR_A + GFOG_NEAR_B * orb.r, far * 0.6)
 
     const cp = rig.camera.position
     const cg = groundY(cp.x, -cp.z) + 0.5
@@ -238,6 +299,7 @@ export function createFlightScene(container: HTMLElement): FlightScene {
 
     history.update(selAc ? (pool.active.get(selId as string) ?? null) : null)
 
+    occupied.length = 0
     for (const v of pool.active.values()) {
       const isSel = v.id === selId
       projectToScreen(rig.camera, w, h, v.x, v.y, v.z, sp)
@@ -250,8 +312,9 @@ export function createFlightScene(container: HTMLElement): FlightScene {
         sp.y > h + 50 ||
         (!isSel && v.camDist > LABEL_MAX_DIST)
       v.label.place(hide ? null : sp)
+      if (!hide) occupied.push(v.label.box(sp))
     }
-    airspace.place(rig.camera, w, h, sp)
+    airspace.place(rig.camera, w, h, sp, occupied)
     for (const s of statics)
       placeStatic(s, projectToScreen(rig.camera, w, h, s.e, groundY(s.e, s.n), -s.n, sp))
 
@@ -307,9 +370,14 @@ export function createFlightScene(container: HTMLElement): FlightScene {
       } catch {
         /* ignore */
       }
-      setTerrainEnabled(on)
-      terrainBlend.value = on ? 1 : 0
-      buildDecor()
+    },
+    setVerticalScale(k) {
+      vTarget = clampVScale(k)
+      try {
+        localStorage.setItem(VSCALE_KEY, String(vTarget))
+      } catch {
+        /* ignore */
+      }
     },
     view(preset: ViewPreset) {
       setFollow(false)

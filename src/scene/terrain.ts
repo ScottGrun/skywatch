@@ -1,13 +1,14 @@
 // Terrain state + height lookup. Heights come from elevation raster tiles (see elevationTiles.ts).
 import { FT_PER_M, toLatLon } from '../core/geo'
 import type { Airport } from '../types'
-import { ALT_EXAG, FT_TO_KM, TILE_R, TILE_R_FAR, TILE_ZOOM, TILE_ZOOM_FAR } from './constants'
+import { D2R, FT_TO_KM, TILE_R, TILE_R_FAR, TILE_ZOOM, TILE_ZOOM_FAR } from './constants'
 import {
   loadHeightField,
   type ElevSource,
   type HeightField,
   type LatLonBox,
 } from './elevationTiles'
+import { terrainBlend, vscale } from './vertical'
 import { latToTileY, lonToTileX, tileXToLon, tileYToLat } from './tileMath'
 
 const INNER_ELEV_ZOOM = 9
@@ -15,6 +16,8 @@ const OUTER_ELEV_ZOOM = 6
 /** Terrain within this distance of a runway is pinned to airport elevation (DEM bumps). */
 const FLAT_KM = 0.35
 const BLEND_KM = 1.2
+/** Width of the cross-fade between the detailed and outer elevation fields, inside the detailed box. */
+const SEAM_KM = 12
 
 export interface Seg {
   ax: number
@@ -33,7 +36,6 @@ interface Data {
 }
 
 let data: Data | null = null
-let enabled = true
 
 /** Lat/lon rectangle covered by the (2R+1)² tile block centred on the airport at zoom `z`. */
 export function tileBox(ap: Airport, z: number, R: number): LatLonBox {
@@ -53,12 +55,6 @@ export function isTerrainLoaded(): boolean {
 export function terrainSource(): ElevSource | null {
   return data?.source ?? null
 }
-export function setTerrainEnabled(on: boolean): void {
-  enabled = on
-}
-export function terrainEnabled(): boolean {
-  return enabled
-}
 export function clearTerrain(): void {
   data = null
 }
@@ -76,14 +72,26 @@ function segDist(s: Seg, e: number, n: number): number {
   return Math.hypot(e - (s.ax + dx * t), n - (s.an + dn * t))
 }
 
-/** Ground height in metres (water clamped to sea level, flattened around runways); ignores `enabled`. */
+/** Ground height in metres (water clamped to sea level, flattened around runways). */
 export function heightM(e: number, n: number): number {
   const d = data
   if (!d) return 0
   const { lat, lon } = toLatLon(d.ap, e, n)
   const b = d.innerBox
   const inside = lat >= b.latMin && lat <= b.latMax && lon >= b.lonMin && lon <= b.lonMax
-  let h = Math.max(0, (inside ? d.inner : d.outer).sample(lat, lon))
+  let h = Math.max(0, d.outer.sample(lat, lon))
+  if (inside) {
+    // Fade from the coarse outer field to the detailed inner one over SEAM_KM so the rings join without a step.
+    const km = 111.2
+    const edge = Math.min(
+      (lat - b.latMin) * km,
+      (b.latMax - lat) * km,
+      (lon - b.lonMin) * km * Math.cos(lat * D2R),
+      (b.lonMax - lon) * km * Math.cos(lat * D2R),
+    )
+    const w = smooth(0, SEAM_KM, edge)
+    h += (Math.max(0, d.inner.sample(lat, lon)) - h) * w
+  }
   let md = Infinity
   for (const s of d.segs) md = Math.min(md, segDist(s, e, n))
   if (md < BLEND_KM) {
@@ -93,19 +101,19 @@ export function heightM(e: number, n: number): number {
   return h
 }
 
-/** Scene Y (km, exaggerated, relative to airport elevation) for a height in metres. */
+/** Height (km, x1 vertical scale, relative to airport elevation) for a height in metres. */
 export function sceneY(heightMeters: number, elevationFt: number): number {
-  return (heightMeters * FT_PER_M - elevationFt) * FT_TO_KM * ALT_EXAG
+  return (heightMeters * FT_PER_M - elevationFt) * FT_TO_KM
 }
 
-/** Terrain surface Y at local km east/north, regardless of the toggle. */
+/** Terrain surface Y at local km east/north at x1 scale (for static geometry inside the scaled group). */
 export function terrainY(e: number, n: number): number {
   return data ? sceneY(heightM(e, n), data.ap.elevationFt) : 0
 }
 
-/** Scene Y of the ground at local km east/north of the airport; 0 before terrain loads or when off. */
+/** Ground Y in the world as drawn now: x1 height times the current vertical scale and relief blend. */
 export function groundY(e: number, n: number): number {
-  return enabled && data ? terrainY(e, n) : 0
+  return data ? terrainY(e, n) * vscale.k * terrainBlend.value : 0
 }
 
 let mapboxFailed = false

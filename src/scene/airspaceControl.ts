@@ -2,12 +2,13 @@ import type * as THREE from 'three'
 import { fetchAirspace } from '../data/airspace'
 import type { Airport, AirspaceStatus } from '../types'
 import { buildAirspace, type AirspaceHandle } from './airspace'
+import type { Rect } from './airspaceLabels'
 import type { ScreenPoint } from './projection'
 
 const OFF: AirspaceStatus = { state: 'off', attribution: '', note: '' }
 
 /** Owns the optional airspace volumes: lazy fetch, rebuild on airport change, status events, disposal. */
-export function createAirspaceControl(scene: THREE.Scene, overlay: HTMLElement) {
+export function createAirspaceControl(scene: THREE.Object3D, overlay: HTMLElement) {
   let on = false
   let airport: Airport | null = null
   let handle: AirspaceHandle | null = null
@@ -68,8 +69,8 @@ export function createAirspaceControl(scene: THREE.Scene, overlay: HTMLElement) 
       airport = ap
       if (on) refresh()
     },
-    place(camera: THREE.Camera, w: number, h: number, sp: ScreenPoint) {
-      handle?.place(camera, w, h, sp)
+    place(camera: THREE.Camera, w: number, h: number, sp: ScreenPoint, occupied: readonly Rect[]) {
+      handle?.place(camera, w, h, sp, occupied)
     },
     subscribe(fn: (s: AirspaceStatus) => void) {
       fns.add(fn)

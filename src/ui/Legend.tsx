@@ -1,4 +1,5 @@
 import type { AirspaceStatus, ViewPreset } from '../types.ts'
+import { VerticalSlider } from './VerticalSlider.tsx'
 
 const VIEWS: [ViewPreset, string][] = [
   ['overview', 'OVERVIEW'],
@@ -13,15 +14,25 @@ interface Props {
   onAirspace: (on: boolean) => void
   terrainOn: boolean
   onTerrain: (on: boolean) => void
+  vscale: number
+  onVscale: (k: number) => void
 }
 
-export function Legend({ onView, airspaceOn, airspace, onAirspace, terrainOn, onTerrain }: Props) {
+export function Legend({
+  onView,
+  airspaceOn,
+  airspace,
+  onAirspace,
+  terrainOn,
+  onTerrain,
+  vscale,
+  onVscale,
+}: Props) {
   const note = airspaceOn ? (airspace.state === 'loading' ? 'LOADING…' : airspace.note) : ''
   return (
     <section className="panel legend">
       <div className="legend-head">
         <span className="label">ALTITUDE · FT</span>
-        <span className="label">VERTICAL ×3</span>
       </div>
       <div className="grad" />
       <div className="ticks">
@@ -29,6 +40,7 @@ export function Legend({ onView, airspaceOn, airspace, onAirspace, terrainOn, on
           <span key={t}>{t}</span>
         ))}
       </div>
+      <VerticalSlider value={vscale} onChange={onVscale} />
       <div className="views">
         {VIEWS.map(([v, label]) => (
           <button key={v} onClick={() => onView(v)}>

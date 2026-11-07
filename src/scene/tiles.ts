@@ -49,6 +49,7 @@ export function buildTiles(
   ap: Airport,
   maxAniso: number,
   onTerrain: () => void,
+  onReady: () => void,
 ): TilesStats {
   const stats: TilesStats = { triangles: 0, terrainMs: null }
   const t0 = performance.now()
@@ -57,7 +58,7 @@ export function buildTiles(
     applyRadialFog(new THREE.MeshBasicMaterial({ color: BG })),
   )
   base.rotation.x = -Math.PI / 2
-  base.position.y = Math.min(-0.4, sceneY(0, ap.elevationFt) - 0.6)
+  base.position.y = Math.min(-0.14, sceneY(0, ap.elevationFt) - 0.2)
   group.add(base)
 
   const loader = new THREE.TextureLoader()
@@ -138,7 +139,9 @@ export function buildTiles(
       } while (i < jobs.length && performance.now() < end)
       await new Promise((r) => setTimeout(r))
     }
+    if (!alive) return
     stats.terrainMs = performance.now() - t0
+    onReady()
     console.info(
       `[terrain] ${terrainSource()} ${Math.round(stats.terrainMs)} ms (elevation ${Math.round(tLoaded - t0)} ms), ${stats.triangles} triangles`,
     )

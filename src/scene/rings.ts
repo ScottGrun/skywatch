@@ -2,7 +2,6 @@ import * as THREE from 'three'
 import { KM_PER_NM } from '../core/geo'
 import {
   COMPASS_RADIUS_KM,
-  DECOR_LIFT,
   D2R,
   GRID_COLOR,
   GRID_OPACITY,
@@ -12,7 +11,7 @@ import {
   RING_NM,
 } from './constants'
 import { applyRadialFog } from './radialFog'
-import { groundY } from './terrain'
+import { terrainY } from './terrain'
 
 /** A fixed text marker positioned in world space (e/n km, ground level). */
 export interface StaticLabelDef {
@@ -29,7 +28,7 @@ const GRID_HALF = 400
 const GRID_SPACING = 10
 const GRID_STEP = 2.5
 
-/** Square grid whose lines follow the terrain surface. */
+/** Square grid whose lines follow the terrain surface (x1 heights; the decor group lifts and scales it). */
 function terrainGrid(): THREE.LineSegments {
   const pts: number[] = []
   const line = (fixed: number, alongE: boolean): void => {
@@ -37,7 +36,7 @@ function terrainGrid(): THREE.LineSegments {
       for (const t of [s, s + GRID_STEP]) {
         const e = alongE ? t : fixed
         const n = alongE ? fixed : t
-        pts.push(e, groundY(e, n) + DECOR_LIFT, -n)
+        pts.push(e, terrainY(e, n), -n)
       }
     }
   }
@@ -56,7 +55,7 @@ function circle(r: number): THREE.Line {
     const a = (i / RING_STEPS) * Math.PI * 2
     const e = Math.sin(a) * r
     const n = Math.cos(a) * r
-    pts.push(new THREE.Vector3(e, groundY(e, n) + DECOR_LIFT, -n))
+    pts.push(new THREE.Vector3(e, terrainY(e, n), -n))
   }
   return new THREE.Line(
     new THREE.BufferGeometry().setFromPoints(pts),

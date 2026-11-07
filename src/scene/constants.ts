@@ -10,7 +10,15 @@ export const GFOG_FAR_A = 80
 export const GFOG_FAR_B = 0.9
 export const FOV = 40
 
-export const ALT_EXAG = 3
+/** Vertical exaggeration of altitude and relief: default and slider range (runtime value in vertical.ts). */
+export const VSCALE_DEFAULT = 3
+export const VSCALE_MIN = 1
+export const VSCALE_MAX = 10
+export const VSCALE_STEP = 0.5
+/** Time constant of the exaggeration easing (s); ~200 ms to settle. */
+export const VSCALE_EASE_S = 0.07
+/** Terrain relief rise-in / fade-out time (s). */
+export const TERRAIN_RISE_S = 0.6
 export const FT_TO_KM = 0.0003048
 export const KT_TO_KMS = 0.000514444
 export const D2R = Math.PI / 180
@@ -21,7 +29,8 @@ export const TILE_R = 4 // 9x9 detailed tiles
 /** Low-zoom outer ring beneath the detailed tiles (cheap far coverage). */
 export const TILE_ZOOM_FAR = 8
 export const TILE_R_FAR = 4 // 9x9 at z8 is roughly +-450 km
-export const TILE_FAR_DROP = 0.15
+/** Outer ring sits this far below the detailed one (km at x1 vertical scale). */
+export const TILE_FAR_DROP = 0.05
 /** Esri Dark Gray is lighter than the CARTO tiles the design assumed, so it is tinted down. */
 export const TILE_TINT_ESRI: readonly [number, number, number] = [0.5, 0.6, 0.72]
 /** Neutral tint for a custom (VITE_MAPBOX_STYLE) style, which is usually already dark. */
@@ -30,7 +39,7 @@ export const TILE_TINT: readonly [number, number, number] = [1.25, 1.4, 1.6]
 
 // Ground decor
 /** Lift of ground decor (grid, rings, markers) above the terrain surface, km. */
-export const DECOR_LIFT = 0.06
+export const DECOR_LIFT = 0.06 // world km, constant at any vertical scale
 export const GRID_COLOR = 0x10181f
 export const GRID_OPACITY = 0.6
 export const RING_COLOR = 0x24323f

@@ -7,7 +7,6 @@ import { getModel, type ModelInfo } from './modelLoader'
 import { modelNameFor } from './modelMap'
 import type { RotorSpec } from './propGeometry'
 import {
-  ALT_EXAG,
   D2R,
   DOT_OPACITY,
   DROP_OPACITY,
@@ -32,6 +31,7 @@ import {
 } from './constants'
 import { AircraftLabel } from './labels'
 import { groundY } from './terrain'
+import { vscale } from './vertical'
 
 export interface FrameCtx {
   nowMs: number
@@ -195,7 +195,7 @@ export class AircraftView {
     this.syncModel(ac)
     const muted = ac.onGround && !selected && !hovered
     this.showLabel = !muted
-    const altKm = Math.max(0, ac.altFt - c.elevFt) * FT_TO_KM * ALT_EXAG
+    const altKm = Math.max(0, ac.altFt - c.elevFt) * FT_TO_KM * vscale.k
     const x = ac.e
     const g = groundY(ac.e, ac.n)
     // On-ground traffic sits on the terrain; airborne never dips below it (DEM vs baro mismatch).
@@ -231,7 +231,7 @@ export class AircraftView {
     const tgt = clamp(-this.rate * ROLL_GAIN, -ROLL_MAX, ROLL_MAX)
     this.bank += (tgt - this.bank) * Math.min(1, c.dt * ROLL_SMOOTH)
     const climb = Math.atan2(
-      (ac.vsFpm / 60) * FT_TO_KM * ALT_EXAG,
+      (ac.vsFpm / 60) * FT_TO_KM * vscale.k,
       Math.max(ac.gsKt, 60) * KT_TO_KMS,
     )
     this.body.position.set(x, y, z)
@@ -257,8 +257,10 @@ export class AircraftView {
     }
 
     this.trail.visible = !ac.onGround
+    // Trail Y is stored at x1 and scaled by the object, so old vertices follow the vertical scale.
+    this.trail.scale.y = vscale.k
     if (ac.onGround) this.hN = 0
-    else this.writeTrail(c.nowMs, x, y, z, tmpC.setHex(col))
+    else this.writeTrail(c.nowMs, x, y / vscale.k, z, tmpC.setHex(col))
 
     const arrow = ac.vsFpm > 300 ? '↑' : ac.vsFpm < -300 ? '↓' : ''
     const fl = String(Math.round(Math.max(0, ac.altFt) / 100)).padStart(3, '0') + arrow

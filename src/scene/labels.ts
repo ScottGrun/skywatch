@@ -6,7 +6,7 @@ const BASE = 'position:absolute;left:0;top:0;white-space:nowrap;will-change:tran
 const AIRCRAFT_CSS =
   BASE +
   `display:flex;gap:6px;align-items:baseline;padding:3px 6px;background:rgba(5,6,8,.8);` +
-  `border:1px solid rgba(255,255,255,.1);border-radius:3px;font:600 11px/1 ${FONT};color:#fff;display:none`
+  `border:1px solid rgba(255,255,255,.1);border-radius:3px;font:600 11px/1 ${FONT};color:#fff;z-index:1;display:none`
 
 export function createOverlay(container: HTMLElement): HTMLDivElement {
   const d = document.createElement('div')
@@ -53,6 +53,13 @@ export class AircraftLabel {
     l.shown = true
     // 10 px right, 8 px above the aircraft
     this.el.style.transform = `translate(${(p.x + 10).toFixed(1)}px,${(p.y - 8).toFixed(1)}px) translateY(-100%)`
+  }
+
+  /** Estimated box (px) of the placed label, without touching layout. */
+  box(p: ScreenPoint): { x0: number; y0: number; x1: number; y1: number } {
+    const w = 14 + (this.last.cs.length + this.last.fl.length) * 6.8
+    const x0 = p.x + 10
+    return { x0, x1: x0 + w, y0: p.y - 8 - 19, y1: p.y - 8 }
   }
 
   remove(): void {
