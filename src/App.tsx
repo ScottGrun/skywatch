@@ -95,6 +95,14 @@ export function App() {
   useEffect(() => {
     void loadLogoIndex()
   }, [])
+  // The scene persists this itself (same key); App mirrors it for the button.
+  const [lightsOn, setLightsOn] = useState(() => {
+    try {
+      return localStorage.getItem('tracon3d.lights') !== '0'
+    } catch {
+      return true
+    }
+  })
   // The scene persists this itself (same key); App mirrors it for the slider.
   const [vscale, setVscale] = useState(() => {
     try {
@@ -223,6 +231,7 @@ export function App() {
   }, [theme])
   useEffect(() => sceneRef.current?.setTerrain(terrainOn), [terrainOn])
   useEffect(() => sceneRef.current?.setLogos(logosOn), [logosOn])
+  useEffect(() => sceneRef.current?.setLights(lightsOn), [lightsOn])
   const onMetar = useCallback((m: Metar | null) => {
     const s = sceneRef.current
     if (!s) return
@@ -306,6 +315,8 @@ export function App() {
         onTerrain={setTerrainOn}
         logosOn={logosOn}
         onLogos={setLogosOn}
+        lightsOn={lightsOn}
+        onLights={setLightsOn}
         vscale={vscale}
         onVscale={setVscale}
       />

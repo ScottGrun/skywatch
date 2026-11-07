@@ -139,6 +139,8 @@ export interface FlightScene {
   setTerrain(on: boolean): void
   /** Airline logos on callsign tags (default on; persisted as tracon3d.logos, shared with the UI via src/data/logos). */
   setLogos(on: boolean): void
+  /** Runway lighting (edge, threshold, centerline, approach, PAPI; default on, persisted by the scene as tracon3d.lights). */
+  setLights(on: boolean): void
   /** Vertical exaggeration of altitude and relief, 1..10 (default 3). Eased in the render loop; persisted by the scene. */
   setVerticalScale(k: number): void
   /** Dark (default) or light look: renderer/fog colors, basemap tiles (swapped in place), decor, tags. Not persisted by the scene. */

@@ -38,6 +38,8 @@ import { projectToScreen, type ScreenPoint } from './projection'
 import { buildRings, type StaticLabelDef } from './rings'
 import { buildWindArrow } from './windArrow'
 import { buildRunways, type RunwaysHandle } from './runways'
+import { buildLights, LIGHT_LIFT, type LightsHandle } from './lights'
+import { setLightViewport } from './lightMaterial'
 import { setLogosEnabled } from '../data/logos'
 import { createSelection } from './selection'
 import { hillshade } from './terrainMesh'
@@ -49,6 +51,15 @@ const TERRAIN_KEY = 'tracon3d.terrain'
 function storedTerrain(): boolean {
   try {
     return localStorage.getItem(TERRAIN_KEY) !== '0'
+  } catch {
+    return true
+  }
+}
+
+const LIGHTS_KEY = 'tracon3d.lights'
+function storedLights(): boolean {
+  try {
+    return localStorage.getItem(LIGHTS_KEY) !== '0'
   } catch {
     return true
   }
@@ -116,6 +127,7 @@ export function createFlightScene(container: HTMLElement): FlightScene {
     h = container.clientHeight || 1
     renderer.setSize(w, h, false)
     rig.setAspect(w / h)
+    setLightViewport(h * renderer.getPixelRatio())
   }
   const ro = new ResizeObserver(resize)
   ro.observe(container)
@@ -130,6 +142,8 @@ export function createFlightScene(container: HTMLElement): FlightScene {
   let world: THREE.Group | null = null
   let statics: StaticLabel[] = []
   let runways: RunwaysHandle | null = null
+  let lights: LightsHandle | null = null
+  let lightsOn = storedLights()
   let wind: { dir: number | null; kt: number } = { dir: null, kt: 0 }
   let windObj: THREE.Line | null = null
   let decor: THREE.Group | null = null
@@ -171,6 +185,7 @@ export function createFlightScene(container: HTMLElement): FlightScene {
     statics.forEach((s) => s.el.remove())
     statics = []
     runways = null
+    lights = null
     decor = null
     windObj = null
     tiles = null
@@ -187,6 +202,10 @@ export function createFlightScene(container: HTMLElement): FlightScene {
     world.add(decor)
     const defs = buildRings(decor)
     runways = buildRunways(decor, airport)
+    lights = buildLights(airport)
+    lights.root.visible = lightsOn
+    runways.setLit(lightsOn)
+    decor.add(lights.root)
     applyWind()
     return defs
   }
@@ -289,6 +308,10 @@ export function createFlightScene(container: HTMLElement): FlightScene {
       decor.position.y = DECOR_LIFT / vk
       decor.scale.y = b
       if (runways) runways.slabs.scale.y = 1 / (vk * b)
+      if (lights) {
+        lights.root.position.y = LIGHT_LIFT / (vk * b)
+        lights.update(rig.camera.position, t / 1000, b * vk, vk)
+      }
     }
 
     // camera first (follows last frame's selected position)
@@ -410,6 +433,16 @@ export function createFlightScene(container: HTMLElement): FlightScene {
       rig.home()
     },
     setLogos: setLogosEnabled,
+    setLights(on) {
+      lightsOn = on
+      if (lights) lights.root.visible = on
+      runways?.setLit(on)
+      try {
+        localStorage.setItem(LIGHTS_KEY, on ? '1' : '0')
+      } catch {
+        /* ignore */
+      }
+    },
     setTerrain(on) {
       if (on === terrainOn) return
       terrainOn = on

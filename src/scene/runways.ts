@@ -31,6 +31,8 @@ export interface RunwaysHandle {
   thresholds: readonly Threshold[]
   /** Runway slabs: the scene counter-scales this group so they keep a constant world thickness. */
   slabs: THREE.Group
+  /** Slab color: darker pavement while runway lights are on so the lights read. */
+  setLit(lit: boolean): void
   /** Re-pick active landing ends from arriving traffic (throttled internally). */
   updateActive(aircraft: readonly Aircraft[], nowMs: number): void
 }
@@ -84,6 +86,7 @@ export function buildRunways(group: THREE.Group, ap: Airport): RunwaysHandle {
   const geoms = runwayGeoms(ap)
   const thresholds: Threshold[] = []
   const lines: THREE.Line[] = []
+  const mats: THREE.MeshBasicMaterial[] = []
   const slabs = new THREE.Group()
   group.add(slabs)
 
@@ -91,10 +94,9 @@ export function buildRunways(group: THREE.Group, ap: Airport): RunwaysHandle {
     const dx = g.b.e - g.a.e
     const dn = g.b.n - g.a.n
     const len = Math.hypot(dx, dn) || 0.1
-    const m = new THREE.Mesh(
-      new THREE.BoxGeometry(g.widthKm, 0.04, len),
-      applyRadialFog(new THREE.MeshBasicMaterial({ color: pal().runway })),
-    )
+    const mat = applyRadialFog(new THREE.MeshBasicMaterial({ color: pal().runway }))
+    mats.push(mat)
+    const m = new THREE.Mesh(new THREE.BoxGeometry(g.widthKm, 0.04, len), mat)
     m.position.set((g.a.e + g.b.e) / 2, 0, -(g.a.n + g.b.n) / 2)
     m.rotation.y = Math.atan2(dx, -dn)
     slabs.add(m)
@@ -140,6 +142,9 @@ export function buildRunways(group: THREE.Group, ap: Airport): RunwaysHandle {
   return {
     thresholds,
     slabs,
+    setLit(lit) {
+      for (const m of mats) m.color.setHex(lit ? pal().runwayLit : pal().runway)
+    },
     updateActive(aircraft, nowMs) {
       if (nowMs - lastMs < ACTIVE_REFRESH_MS) return
       lastMs = nowMs

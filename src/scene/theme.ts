@@ -10,6 +10,8 @@ export interface ScenePalette {
   gridOpacity: number
   ring: number
   runway: number
+  /** Runway slab color while runway lights are on (pavement reads dark at night). */
+  runwayLit: number
   approach: number
   approachOpacity: number
   wind: number
@@ -34,6 +36,7 @@ export const PALETTES: Record<Theme, ScenePalette> = {
     gridOpacity: 0.6,
     ring: 0x24323f,
     runway: 0xdfe7ef,
+    runwayLit: 0x3b454f,
     approach: 0xffffff,
     approachOpacity: 0.35,
     wind: 0xe8edf2,
@@ -58,6 +61,7 @@ export const PALETTES: Record<Theme, ScenePalette> = {
     gridOpacity: 0.7,
     ring: 0x7d8d9b,
     runway: 0x39434d,
+    runwayLit: 0x39434d,
     approach: 0x1c2833,
     approachOpacity: 0.5,
     wind: 0x16202a,
