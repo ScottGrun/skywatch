@@ -1,6 +1,7 @@
 import { createAdsbdb, transientResults } from './adsbdb.ts'
 import { createAdsbLolClient } from './adsblol.ts'
 import { createAirspaceClient } from './airspace.ts'
+import { createMetarClient } from './metar.ts'
 import { createTraceClient } from './trace.ts'
 import { createOpenSkyClient, type FetchFn } from './opensky.ts'
 
@@ -14,6 +15,7 @@ interface Env {
 
 const doFetch: FetchFn = (input, init) => fetch(input, init)
 const adsbLol = createAdsbLolClient({ fetch: doFetch })
+const metars = createMetarClient({ fetch: doFetch })
 const traces = createTraceClient({ fetch: doFetch })
 const wantsOpenSky = (env: Env) => env.TRAFFIC_SOURCE?.toLowerCase() === 'opensky'
 const adsbdb = createAdsbdb({ fetch: doFetch })
@@ -87,6 +89,13 @@ export default {
     if (rt) {
       return json(await adsbdb.route(rt[1].toUpperCase()), 200, {
         'cache-control': 'public, max-age=21600',
+      })
+    }
+
+    const mt = /^\/api\/metar\/([A-Za-z0-9]{3,4})$/.exec(path)
+    if (mt) {
+      return json(await metars.get(mt[1].toUpperCase()), 200, {
+        'cache-control': 'public, max-age=300',
       })
     }
 

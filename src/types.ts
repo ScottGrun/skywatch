@@ -124,6 +124,12 @@ export type ViewPreset = 'overview' | 'top' | 'side'
 export interface FlightScene {
   setAirport(ap: Airport): void // rebuild tiles + runways, reset camera
   setTraffic(src: TrafficSource): void
+  /** Wind indicator at the airport; `dirDeg` is where wind blows FROM. Null/calm hides it. */
+  setWind(dirDeg: number | null, kt: number): void
+  /** Cloud sheets at each layer's AGL base; null/empty hides them. */
+  setClouds(layers: CloudLayer[] | null): void
+  /** Show/hide the cloud sheets (default on). */
+  setCloudsVisible(on: boolean): void
   select(id: string | null): void
   setFollow(on: boolean): void
   /** Real track history for the selected aircraft; ignored unless `id` is selected. null clears. */
@@ -143,4 +149,27 @@ export interface FlightScene {
   on(event: 'follow', fn: (on: boolean) => void): () => void
   on(event: 'airspace', fn: (s: AirspaceStatus) => void): () => void
   dispose(): void
+}
+
+export interface CloudLayer {
+  cover: 'FEW' | 'SCT' | 'BKN' | 'OVC' | 'VV'
+  baseFt: number
+}
+
+/** Compact METAR from `/api/metar/:icao`; `raw` null when no report. */
+export interface Metar {
+  icao: string
+  raw: string | null
+  obsTime?: number | null
+  windDir?: number | null
+  windKt?: number | null
+  gustKt?: number | null
+  visSm?: number | null
+  ceilingFt?: number | null
+  cover?: string | null
+  clouds?: { cover: string; baseFt: number }[]
+  tempC?: number | null
+  dewC?: number | null
+  altimHpa?: number | null
+  flightCat?: 'VFR' | 'MVFR' | 'IFR' | 'LIFR' | null
 }
