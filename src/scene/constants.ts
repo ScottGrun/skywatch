@@ -82,7 +82,7 @@ export const PICK_RADIUS_PX = 28
 export const CLICK_SLOP_PX = 5
 
 // Camera
-export const HOME = { theta: 0.55, phi: 0.98, r: 140 }
+export const HOME = { theta: 0.55, phi: 1.15, r: 140 }
 export const TOP = { phi: 0.06, r: 200 }
 export const SIDE = { phi: 1.45, r: 150 }
 export const PHI_MIN = 0.06
