@@ -235,3 +235,31 @@
   border-color: #fff;
   color: #fff;
 }
+
+/* legend: airspace toggle */
+.airspace-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.airspace-row button {
+  padding: 8px 12px;
+  border: 1px solid var(--ctl);
+  border-radius: 3px;
+  font: 600 10px var(--mono);
+  letter-spacing: 0.1em;
+  color: var(--body);
+}
+.airspace-row button:hover {
+  border-color: #fff;
+  color: #fff;
+}
+.airspace-row button.on {
+  border-color: #2ff0c0;
+  color: #2ff0c0;
+}
+.airspace-note {
+  font: 500 9px var(--mono);
+  letter-spacing: 0.04em;
+  color: var(--body);
+}

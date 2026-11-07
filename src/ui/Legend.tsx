@@ -1,4 +1,4 @@
-import type { ViewPreset } from '../types.ts'
+import type { AirspaceStatus, ViewPreset } from '../types.ts'
 
 const VIEWS: [ViewPreset, string][] = [
   ['overview', 'OVERVIEW'],
@@ -6,7 +6,15 @@ const VIEWS: [ViewPreset, string][] = [
   ['side', 'SIDE'],
 ]
 
-export function Legend({ onView }: { onView: (v: ViewPreset) => void }) {
+interface Props {
+  onView: (v: ViewPreset) => void
+  airspaceOn: boolean
+  airspace: AirspaceStatus
+  onAirspace: (on: boolean) => void
+}
+
+export function Legend({ onView, airspaceOn, airspace, onAirspace }: Props) {
+  const note = airspaceOn ? (airspace.state === 'loading' ? 'LOADING…' : airspace.note) : ''
   return (
     <section className="panel legend">
       <div className="legend-head">
@@ -25,6 +33,16 @@ export function Legend({ onView }: { onView: (v: ViewPreset) => void }) {
             {label}
           </button>
         ))}
+      </div>
+      <div className="airspace-row">
+        <button
+          className={airspaceOn ? 'on' : ''}
+          aria-pressed={airspaceOn}
+          onClick={() => onAirspace(!airspaceOn)}
+        >
+          AIRSPACE
+        </button>
+        {note && <span className="airspace-note">{note}</span>}
       </div>
     </section>
   )

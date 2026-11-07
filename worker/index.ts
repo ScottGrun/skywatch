@@ -1,5 +1,6 @@
 import { createAdsbdb, transientResults } from './adsbdb.ts'
 import { createAdsbLolClient } from './adsblol.ts'
+import { createAirspaceClient } from './airspace.ts'
 import { createTraceClient } from './trace.ts'
 import { createOpenSkyClient, type FetchFn } from './opensky.ts'
 
@@ -8,6 +9,8 @@ interface Env {
   OPENSKY_CLIENT_SECRET?: string
   /** `adsblol` (default) or `opensky`. */
   TRAFFIC_SOURCE?: string
+  /** openAIP API key: worldwide airspace (without it: FAA data, US airports only). */
+  OPENAIP_API_KEY?: string
   ASSETS?: { fetch: FetchFn }
 }
 
@@ -16,6 +19,7 @@ const adsbLol = createAdsbLolClient({ fetch: doFetch })
 const traces = createTraceClient({ fetch: doFetch })
 const wantsOpenSky = (env: Env) => env.TRAFFIC_SOURCE?.toLowerCase() === 'opensky'
 const adsbdb = createAdsbdb({ fetch: doFetch })
+const airspaceClients = new Map<string, ReturnType<typeof createAirspaceClient>>()
 let osClient: ReturnType<typeof createOpenSkyClient> | null = null
 let osKey = ''
 
@@ -30,6 +34,16 @@ function openSky(env: Env) {
     })
   }
   return osClient
+}
+
+function airspace(env: Env) {
+  const key = env.OPENAIP_API_KEY ?? ''
+  let c = airspaceClients.get(key)
+  if (!c) {
+    c = createAirspaceClient({ fetch: doFetch, apiKey: key || undefined })
+    airspaceClients.set(key, c)
+  }
+  return c
 }
 
 function json(body: unknown, status = 200, headers: Record<string, string> = {}): Response {
@@ -82,6 +96,18 @@ export default {
       return json(await adsbdb.route(rt[1].toUpperCase()), 200, {
         'cache-control': 'public, max-age=21600',
       })
+    }
+
+    if (path === '/api/airspace') {
+      const q = url.searchParams
+      const lat = Number(q.get('lat'))
+      const lon = Number(q.get('lon'))
+      const nm = q.has('radiusNm') ? Number(q.get('radiusNm')) : 40
+      const bad = !q.get('lat') || !q.get('lon') || ![lat, lon, nm].every(Number.isFinite)
+      if (bad || Math.abs(lat) > 90 || Math.abs(lon) > 180)
+        return json({ error: 'lat, lon required' }, 400)
+      const body = await airspace(env).get(lat, lon, nm)
+      return json(body, 200, { 'cache-control': body.reason ? 'no-store' : 'public, max-age=3600' })
     }
 
     if (path.startsWith('/api/')) return json({ error: 'not found' }, 404)

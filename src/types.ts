@@ -86,6 +86,38 @@ export interface HistoryPoint {
   altFt: number
 }
 
+export interface AirspaceLimit {
+  value: number
+  unit: 'FT' | 'FL' | 'M'
+  ref: 'MSL' | 'AGL' | 'SFC' | 'STD'
+}
+
+/** One controlled-airspace volume (outer ring only) from `/api/airspace`. */
+export interface Airspace {
+  id: string
+  name: string
+  class: string // 'A'-'D' or a type code (CTR, TMA, CTA, ATZ, R, DNG, P, ...)
+  type: string
+  lower: AirspaceLimit
+  upper: AirspaceLimit
+  polygon: [number, number][] // [lon, lat]
+}
+
+export interface AirspaceData {
+  source: 'openaip' | 'faa' | 'none'
+  attribution: string
+  reason?: 'needs_key' | 'upstream_error'
+  airspaces: Airspace[]
+}
+
+export interface AirspaceStatus {
+  state: 'off' | 'loading' | 'ok' | 'unavailable'
+  /** Credit to show while volumes are visible, e.g. "Airspace: openAIP". */
+  attribution: string
+  /** Short user-facing note when unavailable or empty. */
+  note: string
+}
+
 export type ViewPreset = 'overview' | 'top' | 'side'
 
 /** Imperative scene handle. Implemented in src/scene/createFlightScene.ts. */
@@ -98,10 +130,13 @@ export interface FlightScene {
   setHistory(id: string, path: readonly HistoryPoint[] | null): void
   /** Hide aircraft failing `pred` (no mesh/label/trail/ring, not pickable). null shows all. */
   setFilter(pred: ((a: Aircraft) => boolean) | null): void
+  /** Show/hide controlled-airspace volumes around the airport (fetched lazily, off by default). */
+  setAirspace(on: boolean): void
   view(preset: ViewPreset): void
   /** Ease back over the airport (cancels follow) and start the idle orbit. */
   home(): void
   on(event: 'select', fn: (id: string | null) => void): () => void
   on(event: 'follow', fn: (on: boolean) => void): () => void
+  on(event: 'airspace', fn: (s: AirspaceStatus) => void): () => void
   dispose(): void
 }

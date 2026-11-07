@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { Aircraft, Airport, FeedStatus, FlightScene, ViewPreset } from './types.ts'
+import type {
+  Aircraft,
+  Airport,
+  AirspaceStatus,
+  FeedStatus,
+  FlightScene,
+  ViewPreset,
+} from './types.ts'
 import { loadAirports } from './data/airports.ts'
 import { watchTrack } from './data/track.ts'
 import { createTraffic, type TrafficHandle } from './data/traffic.ts'
@@ -21,6 +28,8 @@ import './ui/ui.css'
 import './ui/panels.css'
 
 const STORE_KEY = 'tracon3d.airport'
+const AIRSPACE_KEY = 'tracon3d.airspace'
+const AIRSPACE_OFF: AirspaceStatus = { state: 'off', attribution: '', note: '' }
 
 function initialAirport(list: Airport[]): Airport | undefined {
   const find = (c: string | null) => {
@@ -60,13 +69,25 @@ export function App() {
     }
     return loadFilter(location.search, stored)
   })
+  const [airspaceOn, setAirspaceOn] = useState(() => {
+    try {
+      return localStorage.getItem(AIRSPACE_KEY) === '1'
+    } catch {
+      return false
+    }
+  })
+  const [airspace, setAirspaceStatus] = useState<AirspaceStatus>(AIRSPACE_OFF)
   const pred = useMemo(() => buildPredicate(filter), [filter])
 
   // Scene: created once (StrictMode-safe via cleanup).
   useEffect(() => {
     const scene = createFlightScene(container.current!)
     sceneRef.current = scene
-    const offs = [scene.on('select', setSelectedId), scene.on('follow', setFollow)]
+    const offs = [
+      scene.on('select', setSelectedId),
+      scene.on('follow', setFollow),
+      scene.on('airspace', setAirspaceStatus),
+    ]
     return () => {
       offs.forEach((off) => off())
       scene.dispose()
@@ -155,6 +176,14 @@ export function App() {
 
   useEffect(() => sceneRef.current?.select(selectedId), [selectedId])
   useEffect(() => sceneRef.current?.setFollow(follow), [follow])
+  useEffect(() => {
+    sceneRef.current?.setAirspace(airspaceOn)
+    try {
+      localStorage.setItem(AIRSPACE_KEY, airspaceOn ? '1' : '0')
+    } catch {
+      /* ignore */
+    }
+  }, [airspaceOn])
   // Real track history for the selected aircraft (refetched every 60 s while selected).
   useEffect(() => {
     if (!selectedId) return
@@ -184,6 +213,13 @@ export function App() {
   const onView = useCallback((v: ViewPreset) => sceneRef.current?.view(v), [])
   const onHome = useCallback(() => sceneRef.current?.home(), [])
 
+  const attribution = [
+    mapAttribution(),
+    source === 'adsblol' ? 'Data: adsb.lol (ODbL)' : '',
+    airspaceOn && airspace.state === 'ok' ? airspace.attribution : '',
+  ]
+    .filter(Boolean)
+    .join(' · ')
   const selected = visible.find((a) => a.id === selectedId) ?? null
   return (
     <div className="app">
@@ -213,12 +249,13 @@ export function App() {
         onClose={() => setSelectedId(null)}
         onFollow={setFollow}
       />
-      <Legend onView={onView} />
-      <Attribution
-        text={
-          source === 'adsblol' ? `${mapAttribution()} · Data: adsb.lol (ODbL)` : mapAttribution()
-        }
+      <Legend
+        onView={onView}
+        airspaceOn={airspaceOn}
+        airspace={airspace}
+        onAirspace={setAirspaceOn}
       />
+      <Attribution text={attribution} />
     </div>
   )
 }
