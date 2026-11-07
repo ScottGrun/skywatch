@@ -54,6 +54,7 @@ export function buildTiles(
   theme: Theme,
   onTerrain: () => void,
   onReady: () => void,
+  extraSegs: readonly Seg[] = [],
 ): TilesStats {
   const slots: TileSlot[] = []
   let detail: DetailPatch | null = null
@@ -129,6 +130,7 @@ export function buildTiles(
     bx: g.b.e,
     bn: g.b.n,
   }))
+  segsList.push(...extraSegs)
   void loadTerrain(ap, segsList, tk, abort.signal).then(async () => {
     if (!alive) return
     const tLoaded = performance.now()

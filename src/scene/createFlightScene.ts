@@ -39,6 +39,7 @@ import { projectToScreen, type ScreenPoint } from './projection'
 import { buildRings, type StaticLabelDef } from './rings'
 import { buildRunways, type RunwaysHandle } from './runways'
 import { drapedY } from './pavement'
+import { buildNearby, nearbySegs, type NearbyHandle } from './nearbyRunways'
 import { buildLights, LIGHT_LIFT, type LightsHandle } from './lights'
 import { setLightViewport } from './lightMaterial'
 import { setLogosEnabled } from '../data/logos'
@@ -144,6 +145,9 @@ export function createFlightScene(container: HTMLElement): FlightScene {
   let statics: StaticLabel[] = []
   let runways: RunwaysHandle | null = null
   let lights: LightsHandle | null = null
+  let nearby: readonly Airport[] = []
+  let nearbyOn = false // neighbours are built once terrain is in (after the main airport)
+  let nearbyH: NearbyHandle | null = null
   let lightsOn = storedLights()
   let decor: THREE.Group | null = null
   let tiles: TilesStats | null = null
@@ -185,6 +189,7 @@ export function createFlightScene(container: HTMLElement): FlightScene {
     statics = []
     runways = null
     lights = null
+    nearbyH = null
     decor = null
     tiles = null
   }
@@ -207,11 +212,19 @@ export function createFlightScene(container: HTMLElement): FlightScene {
       decor.add(lights.root)
     }
     runways.setLit(lightsOn && lights !== null)
+    nearbyH = null
+    if (nearbyOn && nearby.length) {
+      nearbyH = buildNearby(decor, airport, nearby, maxAniso, theme === 'dark')
+      nearbyH.setLightsVisible(lightsOn)
+      nearbyH.setLit(lightsOn && nearbyH.lights !== null)
+    }
     return defs
   }
 
-  function setAirport(ap: Airport): void {
+  function setAirport(ap: Airport, nb: readonly Airport[] = []): void {
     airport = ap
+    nearby = nb
+    nearbyOn = false
     pool.clear()
     history.set(null, ZERO, 0)
     clearWorld()
@@ -224,7 +237,18 @@ export function createFlightScene(container: HTMLElement): FlightScene {
     const ne = toLocal(ap, ob.latMax, ob.lonMax)
     edgeKm = Math.min(-sw.e, ne.e, -sw.n, ne.n)
     world = new THREE.Group()
-    tiles = buildTiles(world, ap, maxAniso, theme, buildDecor, () => (terrainReady = true))
+    tiles = buildTiles(
+      world,
+      ap,
+      maxAniso,
+      theme,
+      () => {
+        nearbyOn = true
+        return buildDecor()
+      },
+      () => (terrainReady = true),
+      nearbySegs(ap, nb),
+    )
     vroot.add(world)
     const labelDefs = buildDecor()
     statics = createStaticLabels(overlay, labelDefs)
@@ -303,6 +327,7 @@ export function createFlightScene(container: HTMLElement): FlightScene {
         lights.root.position.y = drapedY(vk, b, LIGHT_LIFT)
         lights.update(rig.camera.position, t / 1000, b * vk, vk)
       }
+      nearbyH?.place(vk, b)
     }
 
     // camera first (follows last frame's selected position)
@@ -425,6 +450,8 @@ export function createFlightScene(container: HTMLElement): FlightScene {
       lightsOn = on
       if (lights) lights.root.visible = on
       runways?.setLit(on && lights !== null)
+      nearbyH?.setLightsVisible(on)
+      nearbyH?.setLit(on && nearbyH.lights !== null)
       try {
         localStorage.setItem(LIGHTS_KEY, on ? '1' : '0')
       } catch {

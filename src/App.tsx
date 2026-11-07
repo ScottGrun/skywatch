@@ -8,6 +8,7 @@ import type {
   Theme,
   ViewPreset,
 } from './types.ts'
+import { nearbyAirports } from './core/nearby.ts'
 import { loadAirports } from './data/airports.ts'
 import { watchTrack } from './data/track.ts'
 import { createTraffic, type TrafficHandle } from './data/traffic.ts'
@@ -58,6 +59,8 @@ export function App() {
   const sceneRef = useRef<FlightScene | null>(null)
   const trafficRef = useRef<TrafficHandle | null>(null)
   const [airports, setAirports] = useState<Airport[]>([])
+  const airportsRef = useRef<Airport[]>([])
+  airportsRef.current = airports
   const [airport, setAirport] = useState<Airport | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [follow, setFollow] = useState(false)
@@ -156,7 +159,7 @@ export function App() {
       setStatus(s)
       setSource(traffic.source?.() ?? null)
     })
-    scene?.setAirport(airport)
+    scene?.setAirport(airport, nearbyAirports(airportsRef.current, airport))
     scene?.setTraffic(traffic)
     setAircraft(traffic.snapshot(Date.now()))
     const url = new URL(location.href)

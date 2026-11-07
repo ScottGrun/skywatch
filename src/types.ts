@@ -123,7 +123,11 @@ export type Theme = 'dark' | 'light'
 
 /** Imperative scene handle. Implemented in src/scene/createFlightScene.ts. */
 export interface FlightScene {
-  setAirport(ap: Airport): void // rebuild tiles + runways, reset camera
+  /**
+   * Rebuild tiles + runways, reset camera. `nearby` = neighbouring airports (see core/nearby.ts) whose
+   * runways are drawn too: pavement, edge/threshold lights (dark theme) and flattened terrain; no approach lines.
+   */
+  setAirport(ap: Airport, nearby?: readonly Airport[]): void
   setTraffic(src: TrafficSource): void
   select(id: string | null): void
   setFollow(on: boolean): void

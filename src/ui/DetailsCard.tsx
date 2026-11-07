@@ -87,7 +87,7 @@ export function DetailsCard({
           <i style={{ width: `${pct}%`, background: color }} />
           <svg
             className="bar-plane"
-            style={{ left: `${pct}%`, color }}
+            style={{ left: `clamp(8px, ${pct}%, calc(100% - 8px))`, color }}
             viewBox="0 0 24 24"
             aria-hidden
           >

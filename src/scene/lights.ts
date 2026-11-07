@@ -35,7 +35,11 @@ export interface LightsHandle {
 
 /** One Points layer with every runway light of the airport. Built inside the decor group. */
 export function buildLights(ap: Airport): LightsHandle {
-  const specs: LightSpec[] = airportLights(ap, RUNWAY_MIN_WIDTH_KM)
+  return buildLightsFrom(airportLights(ap, RUNWAY_MIN_WIDTH_KM))
+}
+
+/** Same layer from precomputed light specs (e.g. the sparse sets of neighbouring airports). */
+export function buildLightsFrom(specs: readonly LightSpec[]): LightsHandle {
   const n = specs.length
   const look = LOOK
   const pos = new Float32Array(n * 3)

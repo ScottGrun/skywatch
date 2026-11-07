@@ -1,6 +1,6 @@
 // Runway lighting layout (FAA/ICAO-style spacing, simplified). Pure: runway data in, light points out.
 import type { Airport, Runway } from '../types'
-import { toLocal } from './geo'
+import { toLocal, type LatLon } from './geo'
 
 export type LightColor = 'white' | 'yellow' | 'green' | 'red'
 export type LightKind =
@@ -164,5 +164,18 @@ export function runwayLights(
 export function airportLights(ap: Airport, minWidthKm: number): LightSpec[] {
   const out: LightSpec[] = []
   ap.runways.forEach((rw, i) => out.push(...runwayLights(rw, ap, i * 2, minWidthKm)))
+  return out
+}
+
+/** Sparse lights for a neighbouring airport: edge, threshold and end rows only, in `origin`'s frame. */
+export function nearbyLights(aps: readonly Airport[], origin: LatLon, minWidthKm: number): LightSpec[] {
+  const out: LightSpec[] = []
+  for (const ap of aps) {
+    for (const rw of ap.runways) {
+      for (const s of runwayLights(rw, origin, 0, minWidthKm)) {
+        if (s.kind === 'edge' || s.kind === 'threshold' || s.kind === 'end') out.push(s)
+      }
+    }
+  }
   return out
 }

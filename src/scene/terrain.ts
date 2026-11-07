@@ -24,6 +24,17 @@ export interface Seg {
   an: number
   bx: number
   bn: number
+  /** Elevation the ground is pinned to; omitted = the selected airport's (0 = unknown: sampled from the DEM). */
+  elevFt?: number
+}
+
+/** A `Seg` with its pin height (m) and a bounding box grown by the blend distance, for cheap rejection. */
+interface PSeg extends Seg {
+  elevM: number
+  e0: number
+  e1: number
+  n0: number
+  n1: number
 }
 
 interface Data {
@@ -31,7 +42,7 @@ interface Data {
   inner: HeightField
   outer: HeightField
   innerBox: LatLonBox
-  segs: Seg[]
+  segs: PSeg[]
   source: ElevSource
 }
 
@@ -93,11 +104,16 @@ export function heightM(e: number, n: number): number {
     h += (Math.max(0, d.inner.sample(lat, lon)) - h) * w
   }
   let md = Infinity
-  for (const s of d.segs) md = Math.min(md, segDist(s, e, n))
-  if (md < BLEND_KM) {
-    const apM = d.ap.elevationFt / FT_PER_M
-    h += (apM - h) * (1 - smooth(FLAT_KM, BLEND_KM, md))
+  let near: PSeg | null = null
+  for (const s of d.segs) {
+    if (e < s.e0 || e > s.e1 || n < s.n0 || n > s.n1) continue
+    const sd = segDist(s, e, n)
+    if (sd < md) {
+      md = sd
+      near = s
+    }
   }
+  if (near && md < BLEND_KM) h += (near.elevM - h) * (1 - smooth(FLAT_KM, BLEND_KM, md))
   return h
 }
 
@@ -138,7 +154,27 @@ export async function loadTerrain(
         loadHeightField(source, token, OUTER_ELEV_ZOOM, ob, signal),
       ])
       if (signal.aborted) return
-      data = { ap, inner, outer, innerBox: ib, segs, source }
+      const sample = (e: number, n: number): number => {
+        const { lat, lon } = toLatLon(ap, e, n)
+        const inBox = lat >= ib.latMin && lat <= ib.latMax && lon >= ib.lonMin && lon <= ib.lonMax
+        return Math.max(0, (inBox ? inner : outer).sample(lat, lon))
+      }
+      const pinned = segs.map((s): PSeg => {
+        const elevM = s.elevFt
+          ? s.elevFt / FT_PER_M
+          : s.elevFt === 0
+            ? sample((s.ax + s.bx) / 2, (s.an + s.bn) / 2)
+            : ap.elevationFt / FT_PER_M
+        return {
+          ...s,
+          elevM,
+          e0: Math.min(s.ax, s.bx) - BLEND_KM,
+          e1: Math.max(s.ax, s.bx) + BLEND_KM,
+          n0: Math.min(s.an, s.bn) - BLEND_KM,
+          n1: Math.max(s.an, s.bn) + BLEND_KM,
+        }
+      })
+      data = { ap, inner, outer, innerBox: ib, segs: pinned, source }
       return
     } catch (err) {
       if (signal.aborted) return

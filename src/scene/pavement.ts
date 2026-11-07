@@ -80,6 +80,14 @@ export function buildPavement(
     m.renderOrder = 0
     group.add(m)
   }
+  // Middle sections depend only on width, so runways of the same width share one texture.
+  const midTex = new Map<number, THREE.Texture>()
+  const midFor = (widthFt: number): THREE.Texture => {
+    const k = Math.round(widthFt)
+    let t = midTex.get(k)
+    if (!t) midTex.set(k, (t = paintMid(widthFt, col, aniso)))
+    return t
+  }
   for (const r of runways) {
     const dx = r.b.e - r.a.e
     const dn = r.b.n - r.a.n
@@ -90,7 +98,7 @@ export function buildPavement(
     const dir = { e: dx / len, n: dn / len }
     const sp: Split | null = splitRunway(lenFt)
     if (!sp) {
-      add(strip(r.a, dir, 0, len, half, 0, 1), paintMid(widthFt, col, aniso))
+      add(strip(r.a, dir, 0, len, half, 0, 1), midFor(widthFt))
       continue
     }
     const kmA = sp.capA * FT_TO_KM
@@ -102,7 +110,7 @@ export function buildPavement(
     const back = { e: -dir.e, n: -dir.n }
     add(strip(r.b, back, 0, kmB, half, 0, 1), paintCap(lb, widthFt, col, aniso))
     if (sp.mid > 0) {
-      const mid = paintMid(widthFt, col, aniso)
+      const mid = midFor(widthFt)
       add(strip(r.a, dir, kmA, len - kmB, half, 0, sp.mid / DASH_PERIOD), mid)
     }
   }
