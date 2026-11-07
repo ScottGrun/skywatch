@@ -1,4 +1,4 @@
-# Agent rules — TRACON 3D flight tracker
+# Agent rules — SkyWatch flight tracker
 
 `design/` is the design handoff (reference only; never edit, never import from it). `design/README.md` is the authoritative spec for look and behavior; match colors/type/spacing exactly. `design/flight-scene.js` is the rendering approach to port (replace its simulator with live data). `design/support.js` is mockup runtime — ignore.
 

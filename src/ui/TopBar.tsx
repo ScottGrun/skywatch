@@ -38,10 +38,12 @@ export function TopBar({
       <div className="topbar-left">
         <div className="logo">
           <i />
-          TRACON 3D
+          SkyWatch
         </div>
         <AirportSearch airports={airports} onPick={onPick} />
         <FilterDropdown filter={filter} aircraft={aircraft} onChange={onFilter} />
+      </div>
+      <div className="topbar-right">
         {airport && (
           <div className="apt-col">
             <button type="button" className="apt" title="Back to airport" onClick={onHome}>
@@ -53,10 +55,10 @@ export function TopBar({
             <WeatherLine icao={airport.icao} onMetar={onMetar} />
           </div>
         )}
-      </div>
-      <div className="topbar-right">
-        <LiveStatus status={status} source={source} />
-        <Clock />
+        <div className="topbar-live">
+          <LiveStatus status={status} source={source} />
+          <Clock />
+        </div>
       </div>
     </header>
   )
