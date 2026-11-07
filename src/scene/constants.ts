@@ -31,28 +31,17 @@ export const TILE_ZOOM_FAR = 8
 export const TILE_R_FAR = 4 // 9x9 at z8 is roughly +-450 km
 /** Outer ring sits this far below the detailed one (km at x1 vertical scale). */
 export const TILE_FAR_DROP = 0.05
-/** Esri Dark Gray is lighter than the CARTO tiles the design assumed, so it is tinted down. */
-export const TILE_TINT_ESRI: readonly [number, number, number] = [0.5, 0.6, 0.72]
-/** Neutral tint for a custom (VITE_MAPBOX_STYLE) style, which is usually already dark. */
-export const TILE_TINT_CUSTOM: readonly [number, number, number] = [1, 1, 1]
-export const TILE_TINT: readonly [number, number, number] = [1.25, 1.4, 1.6]
 
 // Ground decor
 /** Lift of ground decor (grid, rings, markers) above the terrain surface, km. */
 export const DECOR_LIFT = 0.06 // world km, constant at any vertical scale
-export const GRID_COLOR = 0x10181f
-export const GRID_OPACITY = 0.6
-export const RING_COLOR = 0x24323f
-export const RING_LABEL_COLOR = '#5b6f80'
 export const RING_NM = [10, 20, 30, 40] as const
 export const RING_LABEL_BEARING = 150
 export const COMPASS_RADIUS_KM = 80
 
 // Runways
-export const RUNWAY_COLOR = 0xdfe7ef
 export const RUNWAY_MIN_WIDTH_KM = 0.11
 export const APPROACH_LEN_KM = 22
-export const APPROACH_OPACITY = 0.35
 export const ACTIVE_REFRESH_MS = 2000
 
 // Lights
@@ -74,7 +63,6 @@ export const PITCH_MAX = 0.4
 export const ROLL_MAX = 0.6
 export const ROLL_GAIN = 0.14
 export const ROLL_SMOOTH = 5 // 1/s
-export const SELECT_COLOR = 0xffffff
 
 // Selection
 // Selected aircraft: its ground ring pulses in its own altitude color.

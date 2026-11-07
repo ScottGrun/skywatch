@@ -11,6 +11,11 @@ export const radialFog = {
   },
 }
 
+/** Fog target color; must equal the map's edge/ground color so the circle fades cleanly. */
+export function setFogColor(hex: number): void {
+  radialFog.color.value.set(((hex >> 16) & 255) / 255, ((hex >> 8) & 255) / 255, (hex & 255) / 255)
+}
+
 /** Makes a ground material fade to the background color by world-space distance from the fog center. */
 export function applyRadialFog<T extends THREE.Material>(mat: T): T {
   ;(mat as unknown as { fog: boolean }).fog = false

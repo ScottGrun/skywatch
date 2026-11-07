@@ -27,3 +27,4 @@ pnpm · Vite · React 19 · TypeScript (strict) · three.js · Cloudflare Worker
 4. Map: Mapbox raster tiles (`dark-v11`) when `VITE_MAPBOX_TOKEN` is set, else Esri World Dark Gray (CARTO's free tiles now require an API key). Show matching attribution.
 5. Tests never hit the network.
 6. `pnpm verify` (typecheck, lint, test, build) is the definition of done.
+7. Theme: dark (default) / light, `data-theme` on <html> drives UI CSS variables (src/ui/ui.css); `FlightScene.setTheme` swaps scene colors and basemap in place (palettes in src/scene/theme.ts). Persisted as `tracon3d.theme`; light Mapbox style via `VITE_MAPBOX_STYLE_LIGHT` (default light-v11), Esri World Light Gray without a token.

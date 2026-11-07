@@ -1,13 +1,14 @@
 import type { StaticLabelDef } from './rings'
 import type { ScreenPoint } from './projection'
 import { logoEpoch, logoUrl } from '../data/logos'
+import { readable } from './theme'
 
 const FONT = "'IBM Plex Mono',monospace"
 const BASE = 'position:absolute;left:0;top:0;white-space:nowrap;will-change:transform;'
 const AIRCRAFT_CSS =
   BASE +
-  `display:flex;gap:6px;align-items:baseline;padding:3px 6px;background:rgba(5,6,8,.8);` +
-  `border:1px solid rgba(255,255,255,.1);border-radius:3px;font:600 11px/1 ${FONT};color:#fff;z-index:1;display:none`
+  `display:flex;gap:6px;align-items:baseline;padding:3px 6px;background:var(--tag-bg);` +
+  `border:1px solid var(--tag-border);border-radius:3px;font:600 11px/1 ${FONT};color:var(--tag-text);z-index:1;display:none`
 
 export function createOverlay(container: HTMLElement): HTMLDivElement {
   const d = document.createElement('div')
@@ -60,10 +61,10 @@ export class AircraftLabel {
       }
     }
     if (l.fl !== fl) this.fl.textContent = l.fl = fl
-    if (l.color !== colorCss) this.fl.style.color = l.color = colorCss
+    if (l.color !== colorCss) this.fl.style.color = readable(l.color = colorCss)
     if (l.sel !== selected) {
       l.sel = selected
-      this.el.style.borderColor = selected ? '#fff' : 'rgba(255,255,255,.1)'
+      this.el.style.borderColor = selected ? 'var(--tag-border-sel)' : 'var(--tag-border)'
       this.el.style.zIndex = selected ? '2' : '1'
     }
   }

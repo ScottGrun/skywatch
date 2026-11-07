@@ -31,6 +31,7 @@ import {
 } from './constants'
 import { AircraftLabel } from './labels'
 import { groundY } from './terrain'
+import { pal, shadeHex } from './theme'
 import { vscale } from './vertical'
 
 export interface FrameCtx {
@@ -138,6 +139,11 @@ export class AircraftView {
     this.label = new AircraftLabel(overlay)
   }
 
+  /** Force the next update to re-apply colors (theme change). */
+  recolor(): void {
+    this.colorHex = -1
+  }
+
   /** (Re)bind to a new aircraft; clears history. */
   reset(ac: Aircraft, nowMs: number): void {
     this.id = ac.id
@@ -204,7 +210,8 @@ export class AircraftView {
     this.x = x
     this.y = y
     this.z = z
-    const col = muted ? GROUND_COLOR : rampHex(ac.altFt)
+    const raw = muted ? GROUND_COLOR : rampHex(ac.altFt)
+    const col = shadeHex(raw, pal().shade)
     if (col !== this.colorHex) {
       this.colorHex = col
       this.mat.color.setHex(col)
@@ -265,7 +272,7 @@ export class AircraftView {
     const arrow = ac.vsFpm > 300 ? '↑' : ac.vsFpm < -300 ? '↓' : ''
     const fl = String(Math.round(Math.max(0, ac.altFt) / 100)).padStart(3, '0') + arrow
     if (this.showLabel)
-      this.label.set(ac.callsign || ac.id.toUpperCase(), fl, hexCss(col), selected)
+      this.label.set(ac.callsign || ac.id.toUpperCase(), fl, hexCss(raw), selected)
   }
 
   private writeTrail(nowMs: number, x: number, y: number, z: number, cur: THREE.Color): void {
@@ -344,6 +351,10 @@ export class ViewPool {
     this.scene.remove(v.root)
     v.label.place(null)
     this.free.push(v)
+  }
+
+  recolor(): void {
+    for (const v of this.active.values()) v.recolor()
   }
 
   clear(): void {

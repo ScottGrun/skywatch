@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import { D2R } from './constants'
 import { applyRadialFog } from './radialFog'
 import { terrainY } from './terrain'
+import { pal } from './theme'
 
 /** Ground arrow at the airport pointing downwind (wind blows FROM `dirDeg`). Null when calm/variable. */
 export function buildWindArrow(dirDeg: number | null, kt: number): THREE.Line | null {
@@ -23,7 +24,11 @@ export function buildWindArrow(dirDeg: number | null, kt: number): THREE.Line | 
   return new THREE.Line(
     new THREE.BufferGeometry().setFromPoints(pts),
     applyRadialFog(
-      new THREE.LineBasicMaterial({ color: 0xe8edf2, transparent: true, opacity: 0.5 }),
+      new THREE.LineBasicMaterial({
+        color: pal().wind,
+        transparent: true,
+        opacity: pal().windOpacity,
+      }),
     ),
   )
 }

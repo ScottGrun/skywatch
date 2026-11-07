@@ -7,6 +7,7 @@ import { createAirspaceLabels, type LabelCand, type Rect } from './airspaceLabel
 import type { ScreenPoint } from './projection'
 import { radialFog, applyRadialFog } from './radialFog'
 import { terrainY } from './terrain'
+import { pal, shadeHex } from './theme'
 import { vscale } from './vertical'
 import { disposeObject } from './tiles'
 
@@ -24,6 +25,8 @@ interface Buf {
 
 export interface AirspaceHandle {
   group: THREE.Group
+  /** Recolor the volumes for the current theme. */
+  retint(): void
   /** Position the volume labels (decluttered against `occupied`); call once per frame. */
   place(
     camera: THREE.Camera,
@@ -97,7 +100,7 @@ function addVolume(
 }
 
 function material(color: number, dashed: boolean): THREE.LineBasicMaterial {
-  const p = { color, transparent: true, opacity: LINE_OPACITY, depthWrite: false }
+  const p = { color: shadeHex(color, pal().shade), transparent: true, opacity: LINE_OPACITY, depthWrite: false }
   return applyRadialFog(
     dashed
       ? new THREE.LineDashedMaterial({ ...p, dashSize: 0.7, gapSize: 0.5 })
@@ -140,13 +143,14 @@ export function buildAirspace(
     fg.setAttribute('position', new THREE.Float32BufferAttribute(buf.fill, 3))
     const fm = applyRadialFog(
       new THREE.MeshBasicMaterial({
-        color: style.color,
+        color: shadeHex(style.color, pal().shade),
         transparent: true,
         opacity: FILL_OPACITY,
         depthWrite: false,
         side: THREE.DoubleSide,
       }),
     )
+    fm.userData.base = style.color
     const mesh = new THREE.Mesh(fg, fm)
     mesh.renderOrder = -2
     mesh.frustumCulled = false
@@ -154,7 +158,9 @@ export function buildAirspace(
 
     const lg = new THREE.BufferGeometry()
     lg.setAttribute('position', new THREE.Float32BufferAttribute(buf.line, 3))
-    const lines = new THREE.LineSegments(lg, material(style.color, style.dashed))
+    const lm = material(style.color, style.dashed)
+    lm.userData.base = style.color
+    const lines = new THREE.LineSegments(lg, lm)
     if (style.dashed) lines.computeLineDistances()
     lines.renderOrder = -1
     lines.frustumCulled = false
@@ -164,6 +170,13 @@ export function buildAirspace(
   const labels = createAirspaceLabels(overlay, cands)
   return {
     group,
+    retint() {
+      group.traverse((o) => {
+        const m = (o as THREE.Mesh).material as THREE.MeshBasicMaterial | undefined
+        if (m && typeof m.userData.base === 'number')
+          m.color.setHex(shadeHex(m.userData.base, pal().shade))
+      })
+    },
     place(camera, w, h, sp, occupied) {
       const { center, near } = radialFog
       labels.place(

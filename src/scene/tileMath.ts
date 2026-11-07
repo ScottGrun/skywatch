@@ -1,4 +1,5 @@
 // Pure Web Mercator tile helpers.
+import type { Theme } from '../types'
 import { D2R } from './constants'
 
 export function lonToTileX(lon: number, z: number): number {
@@ -19,8 +20,11 @@ export function tileYToLat(y: number, z: number): number {
 }
 
 /** Accepts `mapbox://styles/user/id`, `user/id`, or an https `.../styles/v1/user/id` URL. */
-export function parseMapboxStyle(style: string | undefined): { user: string; id: string } {
-  const fallback = { user: 'mapbox', id: 'dark-v11' }
+export function parseMapboxStyle(
+  style: string | undefined,
+  fallbackId = 'dark-v11',
+): { user: string; id: string } {
+  const fallback = { user: 'mapbox', id: fallbackId }
   const s = (style ?? '').trim()
   if (!s) return fallback
   const m = /(?:styles\/(?:v1\/)?)?([^/\s?#]+)\/([^/\s?#]+)\/?(?:[?#].*)?$/.exec(s)
@@ -34,13 +38,16 @@ export function tileUrl(
   y: number,
   token: string | undefined,
   style?: string,
+  theme: Theme = 'dark',
 ): string {
+  const light = theme === 'light'
   if (token) {
-    const { user, id } = parseMapboxStyle(style)
+    const { user, id } = parseMapboxStyle(style, light ? 'light-v11' : 'dark-v11')
     return `https://api.mapbox.com/styles/v1/${user}/${id}/tiles/512/${z}/${x}/${y}@2x?access_token=${token}`
   }
   // CARTO's free basemaps now return an "API KEY REQUIRED" placeholder; Esri Dark Gray is keyless.
-  return `https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/${z}/${y}/${x}`
+  const canvas = light ? 'World_Light_Gray_Base' : 'World_Dark_Gray_Base'
+  return `https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/${canvas}/MapServer/tile/${z}/${y}/${x}`
 }
 
 export function attributionFor(token: string | undefined): string {

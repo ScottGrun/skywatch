@@ -10,6 +10,15 @@
       href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
+    <script>
+      // Apply the stored/OS theme before first paint (mirrors src/core/theme.ts resolveTheme).
+      try {
+        var t = localStorage.getItem('tracon3d.theme')
+        if (t !== 'dark' && t !== 'light')
+          t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
+        document.documentElement.dataset.theme = t
+      } catch (e) {}
+    </script>
     <style>
       html,
       body,
@@ -19,6 +28,12 @@
         background: #050608;
         color: #e8edf2;
         font-family: 'IBM Plex Sans Condensed', sans-serif;
+      }
+      html[data-theme='light'],
+      html[data-theme='light'] body,
+      html[data-theme='light'] #root {
+        background: #eef1f4;
+        color: #16202a;
       }
     </style>
   </head>

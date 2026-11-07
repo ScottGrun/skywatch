@@ -1,7 +1,6 @@
 import * as THREE from 'three'
 import { toLocal } from '../core/geo'
 import type { Airport } from '../types'
-import { BG } from './constants'
 import { applyRadialFog } from './radialFog'
 import { terrainY } from './terrain'
 import { terrainBlend, vscale } from './vertical'
@@ -10,7 +9,8 @@ import { tileXToLon, tileYToLat } from './tileMath'
 const SKIRT_KM = 1.2
 /** Hillshade: light from the north-west, 45 degrees up (scene -Z is north). */
 const LIGHT = new THREE.Vector3(-0.5, 0.707, -0.5).normalize()
-const SHADE_STRENGTH = 0.75
+/** Hillshade strength uniform (the light theme uses less, it reads as dirt on a pale map). */
+export const hillshade = { value: 0.75 }
 
 export interface TileSpec {
   ap: Airport
@@ -91,8 +91,8 @@ export interface TerrainMaterial {
 }
 
 /** Tile material: radial ground fog + hillshade + terrain/flat blend. */
-export function createTerrainMaterial(flatY: number): TerrainMaterial {
-  const mat = applyRadialFog(new THREE.MeshBasicMaterial({ color: BG, side: THREE.DoubleSide }))
+export function createTerrainMaterial(flatY: number, bg: number): TerrainMaterial {
+  const mat = applyRadialFog(new THREE.MeshBasicMaterial({ color: bg, side: THREE.DoubleSide }))
   mat.polygonOffset = true
   mat.polygonOffsetFactor = 1
   mat.polygonOffsetUnits = 1
@@ -103,11 +103,12 @@ export function createTerrainMaterial(flatY: number): TerrainMaterial {
     shader.uniforms.uTerr = terrainBlend
     shader.uniforms.uFlatY = { value: flatY }
     shader.uniforms.uVK = vscale.uniform
+    shader.uniforms.uShadeK = hillshade
     shader.uniforms.uHole = { value: hole }
     shader.vertexShader = shader.vertexShader
       .replace(
         '#include <common>',
-        '#include <common>\nattribute vec2 aSlope;\nvarying float vShade;\nuniform float uTerr;\nuniform float uFlatY;\nuniform float uVK;',
+        '#include <common>\nattribute vec2 aSlope;\nvarying float vShade;\nuniform float uTerr;\nuniform float uFlatY;\nuniform float uVK;\nuniform float uShadeK;',
       )
       .replace(
         '#include <begin_vertex>',
@@ -115,7 +116,7 @@ export function createTerrainMaterial(flatY: number): TerrainMaterial {
 transformed.y = mix(uFlatY, transformed.y, uTerr);
 vec2 sl = aSlope * uVK;
 float ndl = (-sl.x * ${LIGHT.x.toFixed(4)} + ${LIGHT.y.toFixed(4)} + sl.y * ${LIGHT.z.toFixed(4)}) / length(vec3(sl.x, 1.0, sl.y));
-vShade = mix(1.0, 1.0 + ${SHADE_STRENGTH} * (clamp(ndl / ${LIGHT.y.toFixed(4)}, 0.15, 1.9) - 1.0), uTerr);`,
+vShade = mix(1.0, 1.0 + uShadeK * (clamp(ndl / ${LIGHT.y.toFixed(4)}, 0.15, 1.9) - 1.0), uTerr);`,
       )
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', '#include <common>\nvarying float vShade;\nuniform vec4 uHole;')

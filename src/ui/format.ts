@@ -3,7 +3,9 @@ import { hexCss, rampHex } from '../core/ramp.ts'
 
 export const dash = (s: string): string => s || '—'
 export const callsignOf = (a: Aircraft): string => a.callsign || a.id.toUpperCase()
-export const altColor = (a: Aircraft): string => hexCss(rampHex(a.onGround ? 0 : a.altFt))
+/** Altitude ramp color; `--alt-mix` (CSS, theme-driven) darkens it on the light theme for contrast. */
+export const altColor = (a: Aircraft): string =>
+  `color-mix(in srgb, ${hexCss(rampHex(a.onGround ? 0 : a.altFt))} var(--alt-mix, 100%), black)`
 export const fmtInt = (n: number): string => Math.round(n).toLocaleString('en-US')
 export const fmtAlt = (a: Aircraft): string =>
   a.onGround ? 'GND' : fmtInt(Math.round(a.altFt / 100) * 100)

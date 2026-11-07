@@ -30,6 +30,11 @@ describe('tileMath', () => {
     expect(attributionFor('tok')).toContain('Mapbox')
     expect(attributionFor(undefined)).toContain('Esri')
   })
+  it('picks light basemaps', () => {
+    expect(tileUrl(10, 1, 2, undefined, undefined, 'light')).toContain('World_Light_Gray_Base')
+    expect(tileUrl(10, 1, 2, 'tok', undefined, 'light')).toContain('mapbox/light-v11/')
+    expect(tileUrl(10, 1, 2, 'tok', 'me/abc', 'light')).toContain('/styles/v1/me/abc/')
+  })
   it('parses mapbox style forms', () => {
     const want = { user: 'me', id: 'abc' }
     expect(parseMapboxStyle('mapbox://styles/me/abc')).toEqual(want)

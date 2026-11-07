@@ -119,6 +119,7 @@ export interface AirspaceStatus {
 }
 
 export type ViewPreset = 'overview' | 'top' | 'side'
+export type Theme = 'dark' | 'light'
 
 /** Imperative scene handle. Implemented in src/scene/createFlightScene.ts. */
 export interface FlightScene {
@@ -140,6 +141,8 @@ export interface FlightScene {
   setLogos(on: boolean): void
   /** Vertical exaggeration of altitude and relief, 1..10 (default 3). Eased in the render loop; persisted by the scene. */
   setVerticalScale(k: number): void
+  /** Dark (default) or light look: renderer/fog colors, basemap tiles (swapped in place), decor, tags. Not persisted by the scene. */
+  setTheme(t: Theme): void
   view(preset: ViewPreset): void
   /** Ease back over the airport (cancels follow) and start the idle orbit. */
   home(): void

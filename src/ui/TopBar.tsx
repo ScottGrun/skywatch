@@ -1,4 +1,5 @@
-import type { Aircraft, Airport, FeedStatus } from '../types.ts'
+import type { Aircraft, Airport, FeedStatus, Theme } from '../types.ts'
+import { ThemeToggle } from './ThemeToggle.tsx'
 import type { FilterState } from '../core/filter.ts'
 import { AirportSearch } from './AirportSearch.tsx'
 import { FilterDropdown } from './FilterDropdown.tsx'
@@ -19,6 +20,8 @@ interface Props {
   onFilter: (f: FilterState) => void
   onHome: () => void
   onMetar: (m: Metar | null) => void
+  theme: Theme
+  onTheme: () => void
 }
 
 export function TopBar({
@@ -32,6 +35,8 @@ export function TopBar({
   onFilter,
   onHome,
   onMetar,
+  theme,
+  onTheme,
 }: Props) {
   return (
     <header className="topbar">
@@ -58,6 +63,7 @@ export function TopBar({
         <div className="topbar-live">
           <LiveStatus status={status} source={source} />
           <Clock />
+          <ThemeToggle theme={theme} onToggle={onTheme} />
         </div>
       </div>
     </header>

@@ -1,4 +1,5 @@
 import type * as THREE from 'three'
+import { readable } from './theme'
 import { projectToScreen, type ScreenPoint } from './projection'
 
 const FONT = "'IBM Plex Mono',monospace"
@@ -59,7 +60,7 @@ function make(overlay: HTMLElement, c: LabelCand): Label {
   // Below aircraft labels (z-index 1/2) in the shared overlay.
   el.style.cssText =
     `position:absolute;left:0;top:0;z-index:0;white-space:nowrap;will-change:transform;display:none;` +
-    `font:500 9px/1 ${FONT};letter-spacing:.04em;color:${c.css};opacity:.75;text-shadow:0 0 3px #050608`
+    `font:500 9px/1 ${FONT};letter-spacing:.04em;color:${readable(c.css)};opacity:.75;text-shadow:0 0 3px var(--halo)`
   el.textContent = c.text
   overlay.appendChild(el)
   const step = Math.max(1, Math.ceil(c.ring.length / MAX_EDGE_PTS))

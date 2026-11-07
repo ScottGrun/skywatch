@@ -15,11 +15,11 @@
   color: var(--lbl);
 }
 .traffic-tabs button:hover {
-  color: #fff;
+  color: var(--strong);
 }
 .traffic-tabs button.on {
-  color: #fff;
-  border-bottom-color: #fff;
+  color: var(--strong);
+  border-bottom-color: var(--strong);
 }
 .arr-row {
   grid-template-columns: 1fr 44px 76px;
@@ -74,7 +74,7 @@
   right: 0;
   bottom: 0;
   padding: 2px 6px;
-  background: rgba(5, 6, 8, 0.8);
+  background: var(--cap);
   font: 500 9px var(--mono);
 }
 .d-photo a {
@@ -82,7 +82,7 @@
   text-decoration: none;
 }
 .d-photo a:hover {
-  color: #fff;
+  color: var(--strong);
 }
 .d-type {
   display: flex;
@@ -93,5 +93,5 @@
 }
 .d-type b {
   font-weight: 600;
-  color: #fff;
+  color: var(--strong);
 }

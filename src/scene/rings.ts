@@ -3,14 +3,11 @@ import { KM_PER_NM } from '../core/geo'
 import {
   COMPASS_RADIUS_KM,
   D2R,
-  GRID_COLOR,
-  GRID_OPACITY,
-  RING_COLOR,
   RING_LABEL_BEARING,
-  RING_LABEL_COLOR,
   RING_NM,
 } from './constants'
 import { applyRadialFog } from './radialFog'
+import { pal } from './theme'
 import { terrainY } from './terrain'
 
 /** A fixed text marker positioned in world space (e/n km, ground level). */
@@ -46,7 +43,7 @@ function terrainGrid(): THREE.LineSegments {
   }
   const g = new THREE.BufferGeometry()
   g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3))
-  return new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: GRID_COLOR }))
+  return new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: pal().grid }))
 }
 
 function circle(r: number): THREE.Line {
@@ -60,7 +57,7 @@ function circle(r: number): THREE.Line {
   return new THREE.Line(
     new THREE.BufferGeometry().setFromPoints(pts),
     applyRadialFog(
-      new THREE.LineBasicMaterial({ color: RING_COLOR, transparent: true, opacity: 0.9 }),
+      new THREE.LineBasicMaterial({ color: pal().ring, transparent: true, opacity: 0.9 }),
     ),
   )
 }
@@ -70,7 +67,7 @@ export function buildRings(group: THREE.Group): StaticLabelDef[] {
   const grid = terrainGrid()
   const gm = applyRadialFog(grid.material as THREE.Material)
   gm.transparent = true
-  gm.opacity = GRID_OPACITY
+  gm.opacity = pal().gridOpacity
   group.add(grid)
 
   const labels: StaticLabelDef[] = []
@@ -82,7 +79,7 @@ export function buildRings(group: THREE.Group): StaticLabelDef[] {
       e: Math.sin(b) * r,
       n: Math.cos(b) * r,
       text: `${nm} NM`,
-      css: `font:500 10px/1 ${FONT};color:${RING_LABEL_COLOR}`,
+      css: `font:500 10px/1 ${FONT};color:var(--ring-label)`,
     })
   }
   const dirs: Array<[string, number]> = [
@@ -96,7 +93,7 @@ export function buildRings(group: THREE.Group): StaticLabelDef[] {
       e: Math.sin(deg * D2R) * COMPASS_RADIUS_KM,
       n: Math.cos(deg * D2R) * COMPASS_RADIUS_KM,
       text: t,
-      css: `font:600 11px/1 ${FONT};color:${RING_LABEL_COLOR}`,
+      css: `font:600 11px/1 ${FONT};color:var(--ring-label)`,
     })
   }
   return labels

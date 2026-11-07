@@ -69,6 +69,9 @@ export function createAirspaceControl(scene: THREE.Object3D, overlay: HTMLElemen
       airport = ap
       if (on) refresh()
     },
+    retint() {
+      handle?.retint()
+    },
     place(camera: THREE.Camera, w: number, h: number, sp: ScreenPoint, occupied: readonly Rect[]) {
       handle?.place(camera, w, h, sp, occupied)
     },

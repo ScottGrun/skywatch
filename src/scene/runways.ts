@@ -4,14 +4,13 @@ import type { Aircraft, Airport } from '../types'
 import {
   ACTIVE_REFRESH_MS,
   APPROACH_LEN_KM,
-  APPROACH_OPACITY,
   D2R,
   FT_TO_KM,
-  RUNWAY_COLOR,
   RUNWAY_MIN_WIDTH_KM,
 } from './constants'
 import { applyRadialFog } from './radialFog'
 import { terrainY } from './terrain'
+import { pal } from './theme'
 
 const APPROACH_STEP_KM = 0.5
 
@@ -94,7 +93,7 @@ export function buildRunways(group: THREE.Group, ap: Airport): RunwaysHandle {
     const len = Math.hypot(dx, dn) || 0.1
     const m = new THREE.Mesh(
       new THREE.BoxGeometry(g.widthKm, 0.04, len),
-      applyRadialFog(new THREE.MeshBasicMaterial({ color: RUNWAY_COLOR })),
+      applyRadialFog(new THREE.MeshBasicMaterial({ color: pal().runway })),
     )
     m.position.set((g.a.e + g.b.e) / 2, 0, -(g.a.n + g.b.n) / 2)
     m.rotation.y = Math.atan2(dx, -dn)
@@ -117,11 +116,11 @@ export function buildRunways(group: THREE.Group, ap: Airport): RunwaysHandle {
       geo,
       applyRadialFog(
         new THREE.LineDashedMaterial({
-          color: 0xffffff,
+          color: pal().approach,
           dashSize: 0.8,
           gapSize: 0.8,
           transparent: true,
-          opacity: APPROACH_OPACITY,
+          opacity: pal().approachOpacity,
         }),
       ),
     )

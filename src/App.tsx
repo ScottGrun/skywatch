@@ -6,6 +6,7 @@ import type {
   Metar,
   FeedStatus,
   FlightScene,
+  Theme,
   ViewPreset,
 } from './types.ts'
 import { loadAirports } from './data/airports.ts'
@@ -24,6 +25,7 @@ import { Attribution } from './ui/Attribution.tsx'
 import { DetailsCard } from './ui/DetailsCard.tsx'
 import { clampVScale } from './scene/vertical.ts'
 import { VSCALE_DEFAULT } from './scene/constants.ts'
+import { applyTheme, initialTheme, saveTheme } from './data/theme.ts'
 import { loadLogoIndex, logosEnabled } from './data/logos.ts'
 import { Legend } from './ui/Legend.tsx'
 import { TopBar } from './ui/TopBar.tsx'
@@ -101,6 +103,7 @@ export function App() {
       return VSCALE_DEFAULT
     }
   })
+  const [theme, setTheme] = useState<Theme>(initialTheme)
   const [airspace, setAirspaceStatus] = useState<AirspaceStatus>(AIRSPACE_OFF)
   const pred = useMemo(() => buildPredicate(filter), [filter])
 
@@ -209,6 +212,15 @@ export function App() {
       /* ignore */
     }
   }, [airspaceOn])
+  useEffect(() => {
+    applyTheme(theme)
+    sceneRef.current?.setTheme(theme)
+  }, [theme])
+  const onTheme = useCallback(() => {
+    const next: Theme = theme === 'dark' ? 'light' : 'dark'
+    saveTheme(next)
+    setTheme(next)
+  }, [theme])
   useEffect(() => sceneRef.current?.setTerrain(terrainOn), [terrainOn])
   useEffect(() => sceneRef.current?.setLogos(logosOn), [logosOn])
   const onMetar = useCallback((m: Metar | null) => {
@@ -268,6 +280,8 @@ export function App() {
         onFilter={setFilter}
         onHome={onHome}
         onMetar={onMetar}
+        theme={theme}
+        onTheme={onTheme}
       />
       <TrafficList
         aircraft={visible}

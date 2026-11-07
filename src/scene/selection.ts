@@ -8,12 +8,14 @@ import {
   ROUTE_EXTEND_KM,
   ROUTE_GAP,
   ROUTE_OPACITY,
-  SELECT_COLOR,
 } from './constants'
 import type { Threshold } from './runways'
 import { groundY } from './terrain'
+import { pal } from './theme'
 
 export interface SelectionHandle {
+  /** Re-read the theme palette (route line color). */
+  setTheme(): void
   update(
     view: AircraftView | null,
     ac: Aircraft | null,
@@ -49,7 +51,7 @@ export function createSelection(scene: THREE.Scene): SelectionHandle {
   const route = new THREE.Line(
     rg,
     new THREE.LineDashedMaterial({
-      color: SELECT_COLOR,
+      color: pal().select,
       dashSize: ROUTE_DASH,
       gapSize: ROUTE_GAP,
       transparent: true,
@@ -61,6 +63,9 @@ export function createSelection(scene: THREE.Scene): SelectionHandle {
   scene.add(route)
 
   return {
+    setTheme() {
+      ;(route.material as THREE.LineDashedMaterial).color.setHex(pal().select)
+    },
     update(view, ac, camera, nowMs, thresholds) {
       if (!view || !ac) {
         route.visible = false

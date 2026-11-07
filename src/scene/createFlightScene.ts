@@ -1,13 +1,12 @@
 import * as THREE from 'three'
 import { toLocal } from '../core/geo'
-import type { Aircraft, Airport, FlightScene, TrafficSource, ViewPreset } from '../types'
+import type { Aircraft, Airport, FlightScene, Theme, TrafficSource, ViewPreset } from '../types'
 import type { Rect } from './airspaceLabels'
 import { createAirspaceControl } from './airspaceControl'
 import { ViewPool, type FrameCtx } from './aircraftView'
 import { disposeAircraftGeometries } from './aircraftGeometry'
 import { CameraRig } from './camera'
 import {
-  BG,
   DECOR_LIFT,
   DIR_INTENSITY,
   FOG_FAR,
@@ -32,16 +31,19 @@ import { createHover } from './hover'
 import { createHistory } from './history'
 import { createLineup } from './lineup'
 import { pickNearest } from './picking'
-import { radialFog } from './radialFog'
+import { radialFog, setFogColor } from './radialFog'
+import { applyOverlayVars, pal, PALETTES, setSceneTheme } from './theme'
+import { initialTheme } from '../data/theme'
 import { projectToScreen, type ScreenPoint } from './projection'
 import { buildRings, type StaticLabelDef } from './rings'
 import { buildWindArrow } from './windArrow'
 import { buildRunways, type RunwaysHandle } from './runways'
 import { setLogosEnabled } from '../data/logos'
 import { createSelection } from './selection'
+import { hillshade } from './terrainMesh'
 import { clearTerrain, groundY, tileBox } from './terrain'
 import { clampVScale, setVScale, terrainBlend } from './vertical'
-import { buildTiles, disposeObject } from './tiles'
+import { buildTiles, disposeObject, type TilesStats } from './tiles'
 
 const TERRAIN_KEY = 'tracon3d.terrain'
 function storedTerrain(): boolean {
@@ -75,17 +77,22 @@ const ZERO = { lat: 0, lon: 0 }
 export function createFlightScene(container: HTMLElement): FlightScene {
   if (getComputedStyle(container).position === 'static') container.style.position = 'relative'
 
+  let theme: Theme = initialTheme()
+  setSceneTheme(theme)
+  setFogColor(pal().bg)
+  hillshade.value = pal().hillshade
   const renderer = new THREE.WebGLRenderer({ antialias: true })
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-  renderer.setClearColor(BG)
+  renderer.setClearColor(pal().bg)
   const cv = renderer.domElement
   cv.style.cssText =
     'position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab'
   container.appendChild(cv)
   const overlay = createOverlay(container)
+  applyOverlayVars(overlay, theme)
 
   const scene = new THREE.Scene()
-  scene.fog = new THREE.Fog(BG, FOG_NEAR, FOG_FAR)
+  scene.fog = new THREE.Fog(pal().bg, FOG_NEAR, FOG_FAR)
   scene.add(new THREE.HemisphereLight(HEMI_SKY, HEMI_GROUND, HEMI_INTENSITY))
   const dl = new THREE.DirectionalLight(0xffffff, DIR_INTENSITY)
   dl.position.set(40, 90, 30)
@@ -126,6 +133,7 @@ export function createFlightScene(container: HTMLElement): FlightScene {
   let wind: { dir: number | null; kt: number } = { dir: null, kt: 0 }
   let windObj: THREE.Line | null = null
   let decor: THREE.Group | null = null
+  let tiles: TilesStats | null = null
   let terrainOn = storedTerrain()
   let terrainReady = false
   let blendRaw = 0
@@ -165,6 +173,7 @@ export function createFlightScene(container: HTMLElement): FlightScene {
     runways = null
     decor = null
     windObj = null
+    tiles = null
   }
 
   /** Grid, rings and runways; rebuilt when terrain arrives or is toggled so they follow the ground. */
@@ -206,7 +215,7 @@ export function createFlightScene(container: HTMLElement): FlightScene {
     const ne = toLocal(ap, ob.latMax, ob.lonMax)
     edgeKm = Math.min(-sw.e, ne.e, -sw.n, ne.n)
     world = new THREE.Group()
-    buildTiles(world, ap, maxAniso, buildDecor, () => (terrainReady = true))
+    tiles = buildTiles(world, ap, maxAniso, theme, buildDecor, () => (terrainReady = true))
     vroot.add(world)
     const labelDefs = buildDecor()
     statics = createStaticLabels(overlay, labelDefs)
@@ -214,6 +223,23 @@ export function createFlightScene(container: HTMLElement): FlightScene {
     select(null)
     setFollow(false)
     rig.home()
+  }
+
+  function setTheme(t: Theme): void {
+    if (t === theme) return
+    theme = t
+    setSceneTheme(t)
+    const bg = PALETTES[t].bg
+    renderer.setClearColor(bg)
+    ;(scene.fog as THREE.Fog).color.setHex(bg)
+    setFogColor(bg)
+    hillshade.value = PALETTES[t].hillshade
+    applyOverlayVars(overlay, t)
+    tiles?.setTheme(t) // textures swap in place; terrain geometry is untouched
+    buildDecor() // grid, rings, runways, wind arrow pick up the new palette (labels use CSS vars)
+    airspace.retint()
+    selection.setTheme()
+    pool.recolor()
   }
 
   // --- input ---
@@ -361,6 +387,7 @@ export function createFlightScene(container: HTMLElement): FlightScene {
 
   return {
     setAirport,
+    setTheme,
     setWind(dir, kt) {
       wind = { dir, kt }
       applyWind()
