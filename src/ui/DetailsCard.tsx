@@ -9,7 +9,6 @@ const utcHm = (s: number) => new Date(s * 1000).toISOString().slice(11, 16)
 
 interface Props {
   aircraft: Aircraft | null
-  airportCode: string
   follow: boolean
   /** Track history start (unix s); null = unavailable; undefined = still loading (line hidden). */
   trackStart?: number | null
@@ -19,7 +18,6 @@ interface Props {
 
 export function DetailsCard({
   aircraft: a,
-  airportCode,
   follow,
   trackStart,
   onClose,
@@ -40,7 +38,7 @@ export function DetailsCard({
   const d = det?.id === a.id ? det.d : null
   const owner = d ? ownerIfDifferent(a.airline, d.owner) : ''
   const color = altColor(a)
-  const eta = a.etaMin == null ? null : Math.max(0, Math.round(a.etaMin))
+  const pct = progress(a) * 100
   const stats: [string, string, string?][] = [
     ['ALTITUDE', a.onGround ? 'GND' : `${fmtInt(a.altFt)} ft`, color],
     ['VERTICAL', fmtVsLong(a.vsFpm)],
@@ -80,24 +78,26 @@ export function DetailsCard({
           {owner && <span>Operated by {owner}</span>}
         </div>
       )}
-      <span className="chip" style={{ background: color }}>
-        {a.phase.toUpperCase()}
-      </span>
       <div>
         <div className="d-route">
           <span>{dash(a.origin)}</span>
           <span>{dash(a.dest)}</span>
         </div>
         <div className="bar">
-          <i style={{ width: `${progress(a) * 100}%`, background: color }} />
+          <i style={{ width: `${pct}%`, background: color }} />
+          <svg
+            className="bar-plane"
+            style={{ left: `${pct}%`, color }}
+            viewBox="0 0 24 24"
+            aria-hidden
+          >
+            <path
+              fill="currentColor"
+              d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z"
+              transform="rotate(90 12 12)"
+            />
+          </svg>
         </div>
-        {eta != null && (
-          <div className="eta">
-            {a.category === 'ARR'
-              ? `Touchdown at ${airportCode} in ~${eta} min`
-              : `Leaves the ${airportCode} area in ~${eta} min`}
-          </div>
-        )}
       </div>
       <div className="stats">
         {stats.map(([k, v, c]) => (

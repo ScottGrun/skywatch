@@ -293,7 +293,6 @@ export function App() {
       />
       <DetailsCard
         aircraft={selected}
-        airportCode={airport ? airport.iata || airport.icao : ''}
         follow={follow}
         trackStart={trackInfo?.id === selectedId ? trackInfo.start : undefined}
         onClose={() => setSelectedId(null)}

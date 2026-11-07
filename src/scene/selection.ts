@@ -2,15 +2,8 @@ import * as THREE from 'three'
 import { angleDiffDeg } from '../core/geo'
 import type { Aircraft } from '../types'
 import type { AircraftView } from './aircraftView'
-import {
-  D2R,
-  ROUTE_DASH,
-  ROUTE_EXTEND_KM,
-  ROUTE_GAP,
-  ROUTE_OPACITY,
-} from './constants'
+import { ROUTE_DASH, ROUTE_GAP, ROUTE_OPACITY } from './constants'
 import type { Threshold } from './runways'
-import { groundY } from './terrain'
 import { pal } from './theme'
 
 export interface SelectionHandle {
@@ -66,34 +59,9 @@ export function createSelection(scene: THREE.Scene): SelectionHandle {
     setTheme() {
       ;(route.material as THREE.LineDashedMaterial).color.setHex(pal().select)
     },
-    update(view, ac, camera, nowMs, thresholds) {
-      if (!view || !ac) {
-        route.visible = false
-        return
-      }
-
-      let ex: number
-      let ey = view.y
-      let ez: number
-      const t = ac.category === 'ARR' && !ac.onGround ? pickThreshold(ac, thresholds) : null
-      if (t) {
-        ex = t.e
-        ey = groundY(t.e, t.n) + 0.06
-        ez = -t.n
-      } else {
-        ex = ac.e + Math.sin(ac.trackDeg * D2R) * ROUTE_EXTEND_KM
-        ez = -(ac.n + Math.cos(ac.trackDeg * D2R) * ROUTE_EXTEND_KM)
-      }
-      const a = pos.array as Float32Array
-      a[0] = view.x
-      a[1] = view.y
-      a[2] = view.z
-      a[3] = ex
-      a[4] = ey
-      a[5] = ez
-      pos.needsUpdate = true
-      route.computeLineDistances()
-      route.visible = true
+    // The predicted-path line is no longer drawn (user preference); kept hidden.
+    update() {
+      route.visible = false
     },
     dispose() {
       scene.remove(route)

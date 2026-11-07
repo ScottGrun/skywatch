@@ -138,8 +138,17 @@
   margin-bottom: 8px;
 }
 .bar {
+  position: relative;
   height: 2px;
+  margin: 8px 0;
   background: var(--track);
+}
+.bar-plane {
+  position: absolute;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  transform: translate(-50%, -50%);
 }
 .bar i {
   display: block;
