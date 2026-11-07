@@ -36,7 +36,6 @@ import { radialFog } from './radialFog'
 import { projectToScreen, type ScreenPoint } from './projection'
 import { buildRings, type StaticLabelDef } from './rings'
 import { buildWindArrow } from './windArrow'
-import { createClouds } from './clouds'
 import { buildRunways, type RunwaysHandle } from './runways'
 import { createSelection } from './selection'
 import { clearTerrain, groundY, tileBox } from './terrain'
@@ -98,7 +97,6 @@ export function createFlightScene(container: HTMLElement): FlightScene {
   const vroot = new THREE.Group()
   scene.add(vroot)
   const airspace = createAirspaceControl(vroot, overlay)
-  const clouds = createClouds(vroot)
   const selection = createSelection(scene)
   const history = createHistory(scene)
   const maxAniso = renderer.capabilities.getMaxAnisotropy()
@@ -366,8 +364,6 @@ export function createFlightScene(container: HTMLElement): FlightScene {
       wind = { dir, kt }
       applyWind()
     },
-    setClouds: clouds.set,
-    setCloudsVisible: clouds.setEnabled,
     setTraffic(src: TrafficSource) {
       traffic = location.search.includes('models=') ? createLineup() : src
     },
@@ -418,7 +414,6 @@ export function createFlightScene(container: HTMLElement): FlightScene {
       selection.dispose()
       history.dispose()
       airspace.dispose()
-      clouds.dispose()
       pool.dispose()
       clearWorld()
       disposeAircraftGeometries()

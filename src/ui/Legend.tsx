@@ -14,8 +14,6 @@ interface Props {
   onAirspace: (on: boolean) => void
   terrainOn: boolean
   onTerrain: (on: boolean) => void
-  cloudsOn: boolean
-  onClouds: (on: boolean) => void
   vscale: number
   onVscale: (k: number) => void
 }
@@ -27,8 +25,6 @@ export function Legend({
   onAirspace,
   terrainOn,
   onTerrain,
-  cloudsOn,
-  onClouds,
   vscale,
   onVscale,
 }: Props) {
@@ -59,13 +55,6 @@ export function Legend({
           onClick={() => onTerrain(!terrainOn)}
         >
           TERRAIN
-        </button>
-        <button
-          className={cloudsOn ? 'on' : ''}
-          aria-pressed={cloudsOn}
-          onClick={() => onClouds(!cloudsOn)}
-        >
-          CLOUDS
         </button>
         <button
           className={airspaceOn ? 'on' : ''}

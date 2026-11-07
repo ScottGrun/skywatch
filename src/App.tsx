@@ -3,7 +3,6 @@ import type {
   Aircraft,
   Airport,
   AirspaceStatus,
-  CloudLayer,
   Metar,
   FeedStatus,
   FlightScene,
@@ -94,13 +93,6 @@ export function App() {
       return clampVScale(Number(localStorage.getItem('tracon3d.vscale') ?? VSCALE_DEFAULT))
     } catch {
       return VSCALE_DEFAULT
-    }
-  })
-  const [cloudsOn, setCloudsOn] = useState(() => {
-    try {
-      return localStorage.getItem('tracon3d.clouds') !== '0'
-    } catch {
-      return true
     }
   })
   const [airspace, setAirspaceStatus] = useState<AirspaceStatus>(AIRSPACE_OFF)
@@ -212,23 +204,10 @@ export function App() {
     }
   }, [airspaceOn])
   useEffect(() => sceneRef.current?.setTerrain(terrainOn), [terrainOn])
-  useEffect(() => {
-    sceneRef.current?.setCloudsVisible(cloudsOn)
-    try {
-      localStorage.setItem('tracon3d.clouds', cloudsOn ? '1' : '0')
-    } catch {
-      /* ignore */
-    }
-  }, [cloudsOn])
   const onMetar = useCallback((m: Metar | null) => {
     const s = sceneRef.current
     if (!s) return
     s.setWind(m?.windDir ?? null, m?.windKt ?? 0)
-    s.setClouds(
-      (m?.clouds ?? [])
-        .filter((c) => c.cover !== 'CLR')
-        .map((c) => ({ cover: c.cover as CloudLayer['cover'], baseFt: c.baseFt })),
-    )
   }, [])
   useEffect(() => sceneRef.current?.setVerticalScale(vscale), [vscale])
   // Real track history for the selected aircraft (refetched every 60 s while selected).
@@ -304,8 +283,6 @@ export function App() {
         onAirspace={setAirspaceOn}
         terrainOn={terrainOn}
         onTerrain={setTerrainOn}
-        cloudsOn={cloudsOn}
-        onClouds={setCloudsOn}
         vscale={vscale}
         onVscale={setVscale}
       />
