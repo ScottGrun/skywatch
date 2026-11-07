@@ -125,8 +125,6 @@ export type Theme = 'dark' | 'light'
 export interface FlightScene {
   setAirport(ap: Airport): void // rebuild tiles + runways, reset camera
   setTraffic(src: TrafficSource): void
-  /** Wind indicator at the airport; `dirDeg` is where wind blows FROM. Null/calm hides it. */
-  setWind(dirDeg: number | null, kt: number): void
   select(id: string | null): void
   setFollow(on: boolean): void
   /** Real track history for the selected aircraft; ignored unless `id` is selected. null clears. */

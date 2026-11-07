@@ -36,7 +36,6 @@ import { applyOverlayVars, pal, PALETTES, setSceneTheme } from './theme'
 import { initialTheme } from '../data/theme'
 import { projectToScreen, type ScreenPoint } from './projection'
 import { buildRings, type StaticLabelDef } from './rings'
-import { buildWindArrow } from './windArrow'
 import { buildRunways, type RunwaysHandle } from './runways'
 import { buildLights, LIGHT_LIFT, type LightsHandle } from './lights'
 import { setLightViewport } from './lightMaterial'
@@ -144,8 +143,6 @@ export function createFlightScene(container: HTMLElement): FlightScene {
   let runways: RunwaysHandle | null = null
   let lights: LightsHandle | null = null
   let lightsOn = storedLights()
-  let wind: { dir: number | null; kt: number } = { dir: null, kt: 0 }
-  let windObj: THREE.Line | null = null
   let decor: THREE.Group | null = null
   let tiles: TilesStats | null = null
   let terrainOn = storedTerrain()
@@ -187,7 +184,6 @@ export function createFlightScene(container: HTMLElement): FlightScene {
     runways = null
     lights = null
     decor = null
-    windObj = null
     tiles = null
   }
 
@@ -202,22 +198,14 @@ export function createFlightScene(container: HTMLElement): FlightScene {
     world.add(decor)
     const defs = buildRings(decor)
     runways = buildRunways(decor, airport)
-    lights = buildLights(airport)
-    lights.root.visible = lightsOn
-    runways.setLit(lightsOn)
-    decor.add(lights.root)
-    applyWind()
-    return defs
-  }
-
-  function applyWind(): void {
-    if (windObj) {
-      windObj.parent?.remove(windObj)
-      disposeObject(windObj)
-      windObj = null
+    // Lights are a night-only feature: not built at all in the light theme.
+    lights = theme === 'dark' ? buildLights(airport) : null
+    if (lights) {
+      lights.root.visible = lightsOn
+      decor.add(lights.root)
     }
-    windObj = decor ? buildWindArrow(wind.dir, wind.kt) : null
-    if (windObj && decor) decor.add(windObj)
+    runways.setLit(lightsOn && lights !== null)
+    return defs
   }
 
   function setAirport(ap: Airport): void {
@@ -255,7 +243,7 @@ export function createFlightScene(container: HTMLElement): FlightScene {
     hillshade.value = PALETTES[t].hillshade
     applyOverlayVars(overlay, t)
     tiles?.setTheme(t) // textures swap in place; terrain geometry is untouched
-    buildDecor() // grid, rings, runways, wind arrow pick up the new palette (labels use CSS vars)
+    buildDecor() // grid, rings, runways pick up the new palette (labels use CSS vars)
     airspace.retint()
     selection.setTheme()
     pool.recolor()
@@ -411,10 +399,6 @@ export function createFlightScene(container: HTMLElement): FlightScene {
   return {
     setAirport,
     setTheme,
-    setWind(dir, kt) {
-      wind = { dir, kt }
-      applyWind()
-    },
     setTraffic(src: TrafficSource) {
       traffic = location.search.includes('models=') ? createLineup() : src
     },
@@ -436,7 +420,7 @@ export function createFlightScene(container: HTMLElement): FlightScene {
     setLights(on) {
       lightsOn = on
       if (lights) lights.root.visible = on
-      runways?.setLit(on)
+      runways?.setLit(on && lights !== null)
       try {
         localStorage.setItem(LIGHTS_KEY, on ? '1' : '0')
       } catch {

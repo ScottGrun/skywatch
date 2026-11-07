@@ -234,12 +234,12 @@
 
 /* legend: airspace toggle */
 .airspace-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 4px;
 }
 .airspace-row button {
-  padding: 8px 12px;
+  padding: 8px;
   border: 1px solid var(--ctl);
   border-radius: 3px;
   font: 600 10px var(--mono);
@@ -255,6 +255,7 @@
   color: var(--accent);
 }
 .airspace-note {
+  grid-column: 1 / -1;
   font: 500 9px var(--mono);
   letter-spacing: 0.04em;
   color: var(--body);

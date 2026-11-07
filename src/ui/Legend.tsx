@@ -1,4 +1,4 @@
-import type { AirspaceStatus, ViewPreset } from '../types.ts'
+import type { AirspaceStatus, Theme, ViewPreset } from '../types.ts'
 import { VerticalSlider } from './VerticalSlider.tsx'
 
 const VIEWS: [ViewPreset, string][] = [
@@ -16,6 +16,7 @@ interface Props {
   onTerrain: (on: boolean) => void
   logosOn: boolean
   onLogos: (on: boolean) => void
+  theme: Theme
   lightsOn: boolean
   onLights: (on: boolean) => void
   vscale: number
@@ -31,6 +32,7 @@ export function Legend({
   onTerrain,
   logosOn,
   onLogos,
+  theme,
   lightsOn,
   onLights,
   vscale,
@@ -78,13 +80,15 @@ export function Legend({
         >
           LOGOS
         </button>
-        <button
-          className={lightsOn ? 'on' : ''}
-          aria-pressed={lightsOn}
-          onClick={() => onLights(!lightsOn)}
-        >
-          LIGHTS
-        </button>
+        {theme === 'dark' && (
+          <button
+            className={lightsOn ? 'on' : ''}
+            aria-pressed={lightsOn}
+            onClick={() => onLights(!lightsOn)}
+          >
+            LIGHTS
+          </button>
+        )}
         {note && <span className="airspace-note">{note}</span>}
       </div>
     </section>

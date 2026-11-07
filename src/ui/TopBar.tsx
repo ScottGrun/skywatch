@@ -6,7 +6,6 @@ import { FilterDropdown } from './FilterDropdown.tsx'
 import { Clock } from './Clock.tsx'
 import { LiveStatus } from './LiveStatus.tsx'
 import { WeatherLine } from './WeatherLine.tsx'
-import type { Metar } from '../types.ts'
 import { fmtCoord } from './format.ts'
 
 interface Props {
@@ -19,7 +18,6 @@ interface Props {
   aircraft: Aircraft[]
   onFilter: (f: FilterState) => void
   onHome: () => void
-  onMetar: (m: Metar | null) => void
   theme: Theme
   onTheme: () => void
 }
@@ -34,7 +32,6 @@ export function TopBar({
   aircraft,
   onFilter,
   onHome,
-  onMetar,
   theme,
   onTheme,
 }: Props) {
@@ -57,7 +54,7 @@ export function TopBar({
                 {airport.icao} · {fmtCoord(airport.lat, airport.lon)}
               </div>
             </button>
-            <WeatherLine icao={airport.icao} onMetar={onMetar} />
+            <WeatherLine icao={airport.icao} />
           </div>
         )}
         <div className="topbar-live">

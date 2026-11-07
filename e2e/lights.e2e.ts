@@ -46,6 +46,7 @@ test('runway lights: toggle, persist, night screenshots', async ({ page }) => {
 
   await page.getByTestId('theme-toggle').click()
   await page.waitForTimeout(4000)
+  await expect(page.getByRole('button', { name: 'LIGHTS' })).toHaveCount(0)
   await page.screenshot({ path: `${SHOTS}/lights-light-theme.png` })
   expect(errors).toEqual([])
 })

@@ -4,14 +4,7 @@ import { toLocal } from './geo'
 
 export type LightColor = 'white' | 'yellow' | 'green' | 'red'
 export type LightKind =
-  | 'edge'
-  | 'threshold'
-  | 'end'
-  | 'center'
-  | 'tdz'
-  | 'approach'
-  | 'rabbit'
-  | 'papi'
+  'edge' | 'threshold' | 'end' | 'center' | 'tdz' | 'approach' | 'rabbit' | 'papi'
 
 export interface LightSpec {
   /** km east / north of the airport reference point. */
@@ -31,7 +24,7 @@ const FT = 0.0003048 // km per ft
 const EDGE_STEP = 200 * FT
 const CENTER_STEP = 50 * FT
 /** Pitch of the lights across a threshold / end row, km (about 10 ft). */
-const ROW_STEP = 0.0031
+const ROW_STEP = 0.006
 /** Threshold (green) and end (red) rows sit this far outside / inside the runway end, km. */
 const ROW_OFFSET = 0.004
 
@@ -111,8 +104,8 @@ export function runwayLights(
       for (const side of [-1, 1]) {
         for (let k = -1; k <= 1; k++) {
           const l = side * 0.008 * latK
-          add(d + k * 0.003, l, 'white', 'tdz')
-          add(L - d + k * 0.003, l, 'white', 'tdz')
+          add(d + k * 0.005, l, 'white', 'tdz')
+          add(L - d + k * 0.005, l, 'white', 'tdz')
         }
       }
     }
@@ -135,17 +128,17 @@ export function runwayLights(
       const step = (alsf ? 100 : 200) * FT
       const reach = (alsf ? 2400 : 1400) * FT
       for (let d = step; d <= reach + 1e-9; d += step) {
-        for (let k = -2; k <= 2; k++) out_(d, k * 0.0022, 'white', 'approach')
+        for (let k = -2; k <= 2; k++) out_(d, k * 0.004, 'white', 'approach')
       }
       // Crossbar at 1,000 ft.
       for (let k = 1; k <= 6; k++) {
-        for (const side of [-1, 1]) out_(1000 * FT, side * (0.004 + k * 0.0025), 'white', 'approach')
+        for (const side of [-1, 1]) out_(1000 * FT, side * (0.006 + k * 0.004), 'white', 'approach')
       }
       // ALSF-2 red side rows (100..900 ft) beside the centerline.
       if (alsf) {
         for (let d = 100 * FT; d <= 900 * FT + 1e-9; d += 100 * FT) {
           for (const side of [-1, 1]) {
-            for (let k = 0; k < 3; k++) out_(d, side * (0.008 + k * 0.0025), 'red', 'approach')
+            for (let k = 0; k < 3; k++) out_(d, side * (0.012 + k * 0.004), 'red', 'approach')
           }
         }
       }

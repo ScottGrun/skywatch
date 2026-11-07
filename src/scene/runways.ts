@@ -1,13 +1,7 @@
 import * as THREE from 'three'
 import { angleDiffDeg, toLocal } from '../core/geo'
 import type { Aircraft, Airport } from '../types'
-import {
-  ACTIVE_REFRESH_MS,
-  APPROACH_LEN_KM,
-  D2R,
-  FT_TO_KM,
-  RUNWAY_MIN_WIDTH_KM,
-} from './constants'
+import { ACTIVE_REFRESH_MS, APPROACH_LEN_KM, D2R, FT_TO_KM, RUNWAY_MIN_WIDTH_KM } from './constants'
 import { applyRadialFog } from './radialFog'
 import { terrainY } from './terrain'
 import { pal } from './theme'

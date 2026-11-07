@@ -27,10 +27,9 @@ export function metarText(m: Metar): string[] {
 
 interface Props {
   icao: string | null
-  onMetar: (m: Metar | null) => void
 }
 
-export function WeatherLine({ icao, onMetar }: Props) {
+export function WeatherLine({ icao }: Props) {
   const [m, setM] = useState<Metar | null>(null)
   useEffect(() => {
     if (!icao) return
@@ -39,18 +38,16 @@ export function WeatherLine({ icao, onMetar }: Props) {
       void fetchMetar(icao, ac.signal).then((r) => {
         if (ac.signal.aborted) return
         setM(r)
-        onMetar(r)
       })
     }
     setM(null)
-    onMetar(null)
     load()
     const id = setInterval(load, REFRESH_MS)
     return () => {
       ac.abort()
       clearInterval(id)
     }
-  }, [icao, onMetar])
+  }, [icao])
   if (!m) return null
   const color = m.flightCat ? CAT_COLOR[m.flightCat] : ''
   return (

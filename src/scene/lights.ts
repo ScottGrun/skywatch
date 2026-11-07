@@ -2,9 +2,8 @@ import * as THREE from 'three'
 import { airportLights, type LightSpec } from '../core/lightLayout'
 import type { Airport } from '../types'
 import { D2R, DECOR_LIFT, RUNWAY_MIN_WIDTH_KM } from './constants'
-import { createLightMaterial, KIND_LOOK, LOOKS } from './lightMaterial'
+import { createLightMaterial, KIND_LOOK, LOOK } from './lightMaterial'
 import { terrainY } from './terrain'
-import { sceneTheme } from './theme'
 
 /** Lights float this far (world km) above the runway slab plane so they are never buried in it. */
 export const LIGHT_LIFT = 0.03
@@ -13,6 +12,8 @@ const PAPI_DEG = [3.5, 3.17, 2.83, 2.5] as const
 /** Rabbit: sweeps per second and trailing length in stations. */
 const RABBIT_HZ = 2
 const RABBIT_TAIL = 1.6
+/** Rabbit flash peak brightness (>1 also swells the sprite). */
+const RABBIT_GAIN = 2.6
 
 interface Papi {
   i: number
@@ -36,7 +37,7 @@ export interface LightsHandle {
 export function buildLights(ap: Airport): LightsHandle {
   const specs: LightSpec[] = airportLights(ap, RUNWAY_MIN_WIDTH_KM)
   const n = specs.length
-  const look = LOOKS[sceneTheme()]
+  const look = LOOK
   const pos = new Float32Array(n * 3)
   const col = new Float32Array(n * 3)
   const size = new Float32Array(n)
@@ -69,11 +70,13 @@ export function buildLights(ap: Airport): LightsHandle {
   geo.setAttribute('aColor', colAttr)
   geo.setAttribute('aSize', new THREE.BufferAttribute(size, 1))
   geo.setAttribute('aGlow', glowAttr)
-  const points = new THREE.Points(geo, createLightMaterial(sceneTheme()))
-  points.frustumCulled = false
-  points.renderOrder = 5
   const root = new THREE.Group()
-  root.add(points)
+  for (const bloom of [true, false]) {
+    const pts = new THREE.Points(geo, createLightMaterial(bloom))
+    pts.frustumCulled = false
+    pts.renderOrder = bloom ? 4 : 5
+    root.add(pts)
+  }
 
   const chainList = [...chains.values()]
   const white = look.colors.white
@@ -90,7 +93,7 @@ export function buildLights(ap: Airport): LightsHandle {
         const pulse = ((tSec * RABBIT_HZ) % 1) * (c.length + RABBIT_TAIL * 2) - RABBIT_TAIL
         for (let j = 0; j < c.length; j++) {
           const d = pulse - j
-          glow[c[j]] = d < 0 || d > RABBIT_TAIL ? 0 : 1 - d / RABBIT_TAIL
+          glow[c[j]] = d < 0 || d > RABBIT_TAIL ? 0 : RABBIT_GAIN * (1 - d / RABBIT_TAIL)
         }
         dirty = true
       }

@@ -3,7 +3,6 @@ import type {
   Aircraft,
   Airport,
   AirspaceStatus,
-  Metar,
   FeedStatus,
   FlightScene,
   Theme,
@@ -232,11 +231,6 @@ export function App() {
   useEffect(() => sceneRef.current?.setTerrain(terrainOn), [terrainOn])
   useEffect(() => sceneRef.current?.setLogos(logosOn), [logosOn])
   useEffect(() => sceneRef.current?.setLights(lightsOn), [lightsOn])
-  const onMetar = useCallback((m: Metar | null) => {
-    const s = sceneRef.current
-    if (!s) return
-    s.setWind(m?.windDir ?? null, m?.windKt ?? 0)
-  }, [])
   useEffect(() => sceneRef.current?.setVerticalScale(vscale), [vscale])
   // Real track history for the selected aircraft (refetched every 60 s while selected).
   useEffect(() => {
@@ -288,7 +282,6 @@ export function App() {
         aircraft={aircraft}
         onFilter={setFilter}
         onHome={onHome}
-        onMetar={onMetar}
         theme={theme}
         onTheme={onTheme}
       />
@@ -315,6 +308,7 @@ export function App() {
         onTerrain={setTerrainOn}
         logosOn={logosOn}
         onLogos={setLogosOn}
+        theme={theme}
         lightsOn={lightsOn}
         onLights={setLightsOn}
         vscale={vscale}

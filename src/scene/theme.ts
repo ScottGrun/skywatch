@@ -14,8 +14,6 @@ export interface ScenePalette {
   runwayLit: number
   approach: number
   approachOpacity: number
-  wind: number
-  windOpacity: number
   select: number
   /** Terrain hillshade strength. */
   hillshade: number
@@ -39,8 +37,6 @@ export const PALETTES: Record<Theme, ScenePalette> = {
     runwayLit: 0x3b454f,
     approach: 0xffffff,
     approachOpacity: 0.35,
-    wind: 0xe8edf2,
-    windOpacity: 0.5,
     select: 0xffffff,
     hillshade: 0.75,
     shade: 1,
@@ -64,8 +60,6 @@ export const PALETTES: Record<Theme, ScenePalette> = {
     runwayLit: 0x39434d,
     approach: 0x1c2833,
     approachOpacity: 0.5,
-    wind: 0x16202a,
-    windOpacity: 0.65,
     select: 0x16202a,
     hillshade: 0.4,
     shade: 1,

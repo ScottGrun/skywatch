@@ -2,7 +2,6 @@ import * as THREE from 'three'
 import type { LightColor, LightKind } from '../core/lightLayout'
 import { FOV } from './constants'
 import { radialFog } from './radialFog'
-import type { Theme } from '../types'
 
 /** Pixels per km at 1 km distance (set from the drawing-buffer height; shared by every light layer). */
 export const lightView = { px: { value: 1000 } }
@@ -13,73 +12,31 @@ export function setLightViewport(heightPx: number): void {
 
 type Rgb = readonly [number, number, number]
 
-interface LightLook {
-  colors: Record<LightColor, Rgb>
-  /** Sprite size multiplier. */
-  size: number
-  /** Overall alpha. */
-  intensity: number
-  /** Point size clamp in device px. */
-  minPx: number
-  maxPx: number
-  additive: boolean
+/** Night look: saturated colors, hot cores, additive halos. (Lights are not drawn in the light theme.) */
+export const LOOK = {
+  colors: {
+    white: [1, 0.9, 0.7],
+    yellow: [1, 0.68, 0.1],
+    green: [0.1, 1, 0.3],
+    red: [1, 0.1, 0.06],
+  } satisfies Record<LightColor, Rgb>,
+  /** Sprite diameter multiplier: the sprite spans the halo, the core is ~28% of it. */
+  size: 4,
+  /** Sprite diameter clamp in device px (core = ~28%): crisp dots up close, visible from mid range. */
+  minPx: 6,
+  maxPx: 22,
 }
 
-/** Dark: bright warm glows blended additively. Light: darker, smaller dots with normal blending. */
-export const LOOKS: Record<Theme, LightLook> = {
-  dark: {
-    colors: {
-      white: [1, 0.93, 0.78],
-      yellow: [1, 0.72, 0.12],
-      green: [0.15, 1, 0.35],
-      red: [1, 0.12, 0.08],
-    },
-    size: 3,
-    intensity: 1,
-    minPx: 3.5,
-    maxPx: 30,
-    additive: true,
-  },
-  light: {
-    colors: {
-      white: [0.9, 0.55, 0.05],
-      yellow: [0.85, 0.45, 0],
-      green: [0, 0.55, 0.2],
-      red: [0.8, 0.05, 0.05],
-    },
-    size: 0.6,
-    intensity: 0.75,
-    minPx: 2,
-    maxPx: 12,
-    additive: false,
-  },
-}
-
-/** Base sprite diameter per light kind (km) and relative brightness. */
+/** Base halo-sprite diameter per light kind (km) and relative brightness. */
 export const KIND_LOOK: Record<LightKind, { size: number; glow: number }> = {
-  edge: { size: 0.011, glow: 0.9 },
-  threshold: { size: 0.011, glow: 1 },
-  end: { size: 0.011, glow: 1 },
-  center: { size: 0.008, glow: 0.8 },
-  tdz: { size: 0.008, glow: 0.9 },
-  approach: { size: 0.011, glow: 1 },
-  rabbit: { size: 0.028, glow: 1 },
-  papi: { size: 0.016, glow: 1 },
-}
-
-/** Soft round glow sprite drawn on a canvas. */
-function glowTexture(): THREE.CanvasTexture {
-  const c = document.createElement('canvas')
-  c.width = c.height = 64
-  const g = c.getContext('2d') as CanvasRenderingContext2D
-  const grad = g.createRadialGradient(32, 32, 0, 32, 32, 32)
-  grad.addColorStop(0, 'rgba(255,255,255,1)')
-  grad.addColorStop(0.18, 'rgba(255,255,255,0.85)')
-  grad.addColorStop(0.45, 'rgba(255,255,255,0.28)')
-  grad.addColorStop(1, 'rgba(255,255,255,0)')
-  g.fillStyle = grad
-  g.fillRect(0, 0, 64, 64)
-  return new THREE.CanvasTexture(c)
+  edge: { size: 0.0045, glow: 0.8 },
+  threshold: { size: 0.005, glow: 0.9 },
+  end: { size: 0.005, glow: 0.9 },
+  center: { size: 0.0035, glow: 0.65 },
+  tdz: { size: 0.0035, glow: 0.75 },
+  approach: { size: 0.0045, glow: 0.85 },
+  rabbit: { size: 0.008, glow: 1 },
+  papi: { size: 0.007, glow: 1 },
 }
 
 const VERT = `
@@ -91,49 +48,66 @@ uniform vec2 uFogCenter;
 uniform float uFogNear, uFogFar;
 varying vec3 vCol;
 varying float vA;
+varying float vR;
 void main() {
   vec4 mv = modelViewMatrix * vec4(position, 1.0);
-  float raw = aSize * uMul * uPx / max(-mv.z, 0.01);
+  // Strobe flashes (glow > 1) also swell a little.
+  float raw = aSize * uMul * (1.0 + 0.35 * max(aGlow - 1.0, 0.0)) * uPx / max(-mv.z, 0.01);
   vec2 w = (modelMatrix * vec4(position, 1.0)).xz;
   float fade = 1.0 - smoothstep(uFogNear, uFogFar, distance(w, uFogCenter));
-  // Below the minimum size the light shrinks no further but dims, so distant rows read as faint lines.
-  vA = aGlow * uInt * fade * clamp(raw / uMin, 0.5, 1.0);
+  // Below the minimum size a light shrinks no further but dims, so distant rows read as faint lines.
+  vA = aGlow * uInt * fade * clamp(raw / uMin, 0.25, 1.0);
+  // 1 up close, 0 once the sprite is at its minimum size: halos and white-hot cores fade out at range.
+  vR = smoothstep(uMin, uMin * 3.0, raw);
   vCol = aColor;
-  gl_PointSize = vA > 0.01 ? clamp(raw, uMin, uMax) : 0.0;
+  gl_PointSize = vA > 0.01 ? clamp(raw, uMin, uMax) * uScale : 0.0;
   gl_Position = projectionMatrix * mv;
 }`
 
+// Core: small hot near-white disc tinted at its rim; halo: exponential falloff in the light's color.
 const FRAG = `
-uniform sampler2D uMap;
+uniform float uBloom;
 varying vec3 vCol;
 varying float vA;
+varying float vR;
 void main() {
-  float a = texture2D(uMap, gl_PointCoord).a * vA;
-  gl_FragColor = vec4(vCol, a);
+  float r = length(gl_PointCoord - 0.5) * 2.0;
+  if (r > 1.0) discard;
+  float halo = exp(-r * 8.0) * (1.0 - r);
+  float core = exp(-pow(r / 0.3, 2.0));
+  vec3 c;
+  float i;
+  if (uBloom > 0.5) {
+    // Wide faint bloom layer (same geometry, larger sprite): halo only, close range only.
+    i = exp(-r * 4.0) * (1.0 - r) * 0.1 * vA * vR;
+    c = vCol;
+  } else {
+    // Hot core only up close; at range the point stays a saturated color.
+    c = mix(vCol, vec3(1.0), core * 0.55 * vR);
+    i = min(core * 1.0 + halo * 0.7 * vR, 1.0) * min(vA, 2.0);
+  }
+  gl_FragColor = vec4(c, clamp(i, 0.0, 1.0));
 }`
 
-export function createLightMaterial(theme: Theme): THREE.ShaderMaterial {
-  const look = LOOKS[theme]
-  const map = glowTexture()
-  const mat = new THREE.ShaderMaterial({
+/** `bloom` = the large, very faint second layer (no post-processing; same points, bigger sprite). */
+export function createLightMaterial(bloom: boolean): THREE.ShaderMaterial {
+  return new THREE.ShaderMaterial({
     uniforms: {
-      uMap: { value: map },
       uPx: lightView.px,
-      uMul: { value: look.size },
-      uMin: { value: look.minPx },
-      uMax: { value: look.maxPx },
-      uInt: { value: look.intensity },
+      uMul: { value: LOOK.size },
+      uMin: { value: LOOK.minPx },
+      uMax: { value: LOOK.maxPx },
+      uInt: { value: 1 },
+      uScale: { value: bloom ? 2 : 1 },
+      uBloom: { value: bloom ? 1 : 0 },
       uFogCenter: radialFog.center,
       uFogNear: radialFog.near,
       uFogFar: radialFog.far,
     },
-    vertexShader: VERT,
+    vertexShader: VERT.replace('uniform float uPx,', 'uniform float uScale, uPx,'),
     fragmentShader: FRAG,
     transparent: true,
     depthWrite: false,
-    blending: look.additive ? THREE.AdditiveBlending : THREE.NormalBlending,
+    blending: THREE.AdditiveBlending,
   })
-  // disposeObject() disposes `material.map`; point it at the sprite so it is freed with the lights.
-  ;(mat as unknown as { map: THREE.Texture }).map = map
-  return mat
 }
