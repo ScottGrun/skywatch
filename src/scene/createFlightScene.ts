@@ -155,7 +155,7 @@ export function createFlightScene(container: HTMLElement): FlightScene {
 
   function clearWorld(): void {
     if (world) {
-      scene.remove(world)
+      world.removeFromParent() // it lives under vroot, not scene
       disposeObject(world)
       world = null
     }
