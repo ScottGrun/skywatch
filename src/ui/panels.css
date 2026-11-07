@@ -103,11 +103,6 @@
   gap: 18px;
   background: rgba(7, 9, 12, 0.9);
 }
-.empty {
-  margin: 0;
-  font: 400 14px/1.4 var(--sans);
-  color: var(--body);
-}
 .d-head {
   display: flex;
   justify-content: space-between;
@@ -262,4 +257,59 @@
   font: 500 9px var(--mono);
   letter-spacing: 0.04em;
   color: var(--body);
+}
+
+/* legend: vertical exaggeration slider */
+.vscale {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.vscale .label {
+  min-width: 96px;
+  font: 600 9px var(--mono);
+  letter-spacing: 0.1em;
+}
+.vscale input[type='range'] {
+  flex: 1;
+  height: 14px;
+  margin: 0;
+  background: transparent;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+}
+.vscale input[type='range']::-webkit-slider-runnable-track {
+  height: 2px;
+  background: linear-gradient(90deg, #e8edf2 var(--fill), #1f2a34 var(--fill));
+}
+.vscale input[type='range']::-moz-range-track {
+  height: 2px;
+  background: #1f2a34;
+}
+.vscale input[type='range']::-moz-range-progress {
+  height: 2px;
+  background: #e8edf2;
+}
+.vscale input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 10px;
+  height: 10px;
+  margin-top: -4px;
+  border-radius: 50%;
+  background: #e8edf2;
+  border: 0;
+}
+.vscale input[type='range']::-moz-range-thumb {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #e8edf2;
+  border: 0;
+}
+.vscale input[type='range']:focus-visible::-webkit-slider-thumb {
+  background: #2ff0c0;
+}
+.vscale input[type='range']:focus-visible::-moz-range-thumb {
+  background: #2ff0c0;
 }

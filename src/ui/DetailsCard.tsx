@@ -21,16 +21,7 @@ export function DetailsCard({
   onClose,
   onFollow,
 }: Props) {
-  if (!a) {
-    return (
-      <section className="panel details">
-        <span className="label">NO AIRCRAFT SELECTED</span>
-        <p className="empty">
-          Click an aircraft or a list row to see its details and follow it with the camera.
-        </p>
-      </section>
-    )
-  }
+  if (!a) return null
   const color = altColor(a)
   const eta = a.etaMin == null ? null : Math.max(0, Math.round(a.etaMin))
   const stats: [string, string, string?][] = [
