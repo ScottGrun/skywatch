@@ -1,6 +1,8 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { Aircraft } from '../types.ts'
 import { altColor, callsignOf, dash, fmtAlt, fmtVsShort } from './format.ts'
+
+const OPEN_KEY = 'tracon3d.listOpen'
 
 interface Props {
   aircraft: Aircraft[]
@@ -13,14 +15,34 @@ interface Props {
 export function TrafficList({ aircraft, total, selectedId, onSelect }: Props) {
   const sorted = useMemo(() => [...aircraft].sort((a, b) => b.altFt - a.altFt), [aircraft])
   const count = (c: string) => aircraft.filter((a) => a.category === c).length
+  const [open, setOpen] = useState(() => localStorage.getItem(OPEN_KEY) !== '0')
+  useEffect(() => localStorage.setItem(OPEN_KEY, open ? '1' : '0'), [open])
+  // "L" toggles the list (ignored while typing in a field).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null
+      if (e.key.toLowerCase() !== 'l' || e.ctrlKey || e.metaKey || e.altKey) return
+      if (el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))) return
+      setOpen((o) => !o)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
   return (
-    <aside className="panel traffic">
-      <div className="traffic-head">
+    <aside className={'panel traffic' + (open ? '' : ' collapsed')}>
+      <button
+        type="button"
+        className="traffic-head"
+        aria-expanded={open}
+        title={open ? 'Hide aircraft list (L)' : 'Show aircraft list (L)'}
+        onClick={() => setOpen((o) => !o)}
+      >
         <span className="label">TRAFFIC</span>
         <span className="traffic-n">
           {aircraft.length === total ? total : `${aircraft.length} of ${total}`} aircraft
+          <span className="traffic-chev">{open ? '▾' : '▸'}</span>
         </span>
-      </div>
+      </button>
       <div className="counts">
         {(['ARR', 'DEP', 'OVR'] as const).map((c) => (
           <div key={c}>
@@ -29,28 +51,31 @@ export function TrafficList({ aircraft, total, selectedId, onSelect }: Props) {
           </div>
         ))}
       </div>
-      <div className="rows">
-        {sorted.map((a) => (
-          <div
-            key={a.id}
-            className={'row' + (a.id === selectedId ? ' sel' : '')}
-            onClick={() => onSelect(a.id === selectedId ? null : a.id)}
-          >
-            <div>
+      {open && (
+        <div className="rows">
+          {sorted.map((a) => (
+            <div
+              key={a.id}
+              className={'row' + (a.id === selectedId ? ' sel' : '')}
+              onClick={() => onSelect(a.id === selectedId ? null : a.id)}
+            >
               <div>
-                <b className="cs">{callsignOf(a)}</b> <span className="ty">{dash(a.typeCode)}</span>
+                <div>
+                  <b className="cs">{callsignOf(a)}</b>{' '}
+                  <span className="ty">{dash(a.typeCode)}</span>
+                </div>
+                <div className="rt">
+                  {dash(a.origin)} → {dash(a.dest)}
+                </div>
               </div>
-              <div className="rt">
-                {dash(a.origin)} → {dash(a.dest)}
+              <div className="alt">
+                <b style={{ color: altColor(a) }}>{fmtAlt(a)}</b>
+                <div className="ty">{fmtVsShort(a.vsFpm)}</div>
               </div>
             </div>
-            <div className="alt">
-              <b style={{ color: altColor(a) }}>{fmtAlt(a)}</b>
-              <div className="ty">{fmtVsShort(a.vsFpm)}</div>
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </aside>
   )
 }
