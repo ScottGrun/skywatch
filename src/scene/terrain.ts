@@ -108,6 +108,8 @@ export function groundY(e: number, n: number): number {
   return enabled && data ? terrainY(e, n) : 0
 }
 
+let mapboxFailed = false
+
 /** Loads elevation for `ap`. Tries Mapbox Terrain-RGB when a token is given, else/after failure AWS Terrarium. */
 export async function loadTerrain(
   ap: Airport,
@@ -117,7 +119,10 @@ export async function loadTerrain(
 ): Promise<void> {
   const ib = tileBox(ap, TILE_ZOOM, TILE_R)
   const ob = tileBox(ap, TILE_ZOOM_FAR, TILE_R_FAR)
-  const order: ElevSource[] = token ? ['mapbox', 'terrarium'] : ['terrarium']
+  // AWS Terrarium is free and keyless, so it's the default. Mapbox Terrain-RGB is opt-in
+  // (VITE_TERRAIN_SOURCE=mapbox): it bills against the Mapbox token and returned 429 for ours.
+  const wantMapbox = import.meta.env.VITE_TERRAIN_SOURCE === 'mapbox' && !!token && !mapboxFailed
+  const order: ElevSource[] = wantMapbox ? ['mapbox', 'terrarium'] : ['terrarium']
   for (const source of order) {
     try {
       const [inner, outer] = await Promise.all([
@@ -130,6 +135,7 @@ export async function loadTerrain(
     } catch (err) {
       if (signal.aborted) return
       console.warn(`terrain: ${source} failed`, err)
+      if (source === 'mapbox') mapboxFailed = true // don't retry it this session
     }
   }
 }
