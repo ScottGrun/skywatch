@@ -37,6 +37,7 @@ import { projectToScreen, type ScreenPoint } from './projection'
 import { buildRings, type StaticLabelDef } from './rings'
 import { buildWindArrow } from './windArrow'
 import { buildRunways, type RunwaysHandle } from './runways'
+import { setLogosEnabled } from '../data/logos'
 import { createSelection } from './selection'
 import { clearTerrain, groundY, tileBox } from './terrain'
 import { clampVScale, setVScale, terrainBlend } from './vertical'
@@ -381,6 +382,7 @@ export function createFlightScene(container: HTMLElement): FlightScene {
       setFollow(false)
       rig.home()
     },
+    setLogos: setLogosEnabled,
     setTerrain(on) {
       if (on === terrainOn) return
       terrainOn = on

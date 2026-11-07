@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Aircraft } from '../types.ts'
+import { AirlineLogo } from './AirlineLogo.tsx'
 import { ArrivalsBoard } from './ArrivalsBoard.tsx'
 import { altColor, callsignOf, dash, fmtAlt, fmtVsShort } from './format.ts'
 
@@ -86,7 +87,7 @@ export function TrafficList({ aircraft, total, selectedId, onSelect }: Props) {
             >
               <div>
                 <div>
-                  <b className="cs">{callsignOf(a)}</b>{' '}
+                  <AirlineLogo callsign={callsignOf(a)} /> <b className="cs">{callsignOf(a)}</b>{' '}
                   <span className="ty">{dash(a.typeCode)}</span>
                 </div>
                 <div className="rt">

@@ -313,3 +313,9 @@
 .vscale input[type='range']:focus-visible::-moz-range-thumb {
   background: #2ff0c0;
 }
+
+.alogo {
+  border-radius: 3px;
+  vertical-align: middle;
+  object-fit: contain;
+}

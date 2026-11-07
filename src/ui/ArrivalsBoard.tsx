@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { arrivalStatus, arrivalsBoard, fmtEta } from '../core/arrivals.ts'
 import type { Aircraft } from '../types.ts'
+import { AirlineLogo } from './AirlineLogo.tsx'
 import { altColor, callsignOf, dash } from './format.ts'
 import './arrivals.css'
 
@@ -27,7 +28,8 @@ export function ArrivalsBoard({ aircraft, selectedId, onSelect }: Props) {
           onClick={() => onSelect(a.id === selectedId ? null : a.id)}
         >
           <div className="arr-main">
-            <b className="cs">{callsignOf(a)}</b> <span className="ty">{dash(a.typeCode)}</span>
+            <AirlineLogo callsign={callsignOf(a)} /> <b className="cs">{callsignOf(a)}</b>{' '}
+            <span className="ty">{dash(a.typeCode)}</span>
             <div className="rt arr-air">{dash(a.airline)}</div>
           </div>
           <div className="arr-from">{dash(a.origin)}</div>

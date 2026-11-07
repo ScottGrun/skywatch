@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { ownerIfDifferent, type AircraftDetails } from '../core/details.ts'
 import { getAircraftDetails } from '../data/details.ts'
 import type { Aircraft } from '../types.ts'
+import { AirlineLogo } from './AirlineLogo.tsx'
 import { altColor, callsignOf, dash, fmtInt, fmtVsLong, pad3, progress } from './format.ts'
 
 const utcHm = (s: number) => new Date(s * 1000).toISOString().slice(11, 16)
@@ -52,7 +53,9 @@ export function DetailsCard({
     <section className="panel details">
       <div className="d-head">
         <div>
-          <div className="d-cs">{callsignOf(a)}</div>
+          <div className="d-cs">
+            <AirlineLogo callsign={callsignOf(a)} size={22} /> {callsignOf(a)}
+          </div>
           <div className="d-sub">
             {dash(a.airline)} · {dash(a.typeCode)}
           </div>

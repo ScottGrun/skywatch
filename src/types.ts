@@ -136,6 +136,8 @@ export interface FlightScene {
   setAirspace(on: boolean): void
   /** Real 3D terrain (default) vs the flat map. Relief animates in/out (~0.6 s); persisted by the scene in localStorage. */
   setTerrain(on: boolean): void
+  /** Airline logos on callsign tags (default on; persisted as tracon3d.logos, shared with the UI via src/data/logos). */
+  setLogos(on: boolean): void
   /** Vertical exaggeration of altitude and relief, 1..10 (default 3). Eased in the render loop; persisted by the scene. */
   setVerticalScale(k: number): void
   view(preset: ViewPreset): void

@@ -1,5 +1,6 @@
 import type { StaticLabelDef } from './rings'
 import type { ScreenPoint } from './projection'
+import { logoEpoch, logoUrl } from '../data/logos'
 
 const FONT = "'IBM Plex Mono',monospace"
 const BASE = 'position:absolute;left:0;top:0;white-space:nowrap;will-change:transform;'
@@ -20,11 +21,26 @@ export class AircraftLabel {
   readonly el: HTMLDivElement
   private cs = document.createElement('span')
   private fl = document.createElement('span')
-  private last = { cs: '', fl: '', color: '', sel: false, shown: false, tf: '' }
+  private logo = document.createElement('img')
+  private last = {
+    cs: '',
+    fl: '',
+    color: '',
+    sel: false,
+    shown: false,
+    tf: '',
+    epoch: -1,
+    logo: '',
+  }
 
   constructor(overlay: HTMLElement) {
     this.el = document.createElement('div')
     this.el.style.cssText = AIRCRAFT_CSS
+    this.logo.decoding = 'async'
+    this.logo.alt = ''
+    this.logo.style.cssText =
+      'display:none;width:14px;height:14px;border-radius:3px;align-self:center;margin-right:-1px'
+    this.el.appendChild(this.logo)
     this.el.appendChild(this.cs)
     this.el.appendChild(this.fl)
     overlay.appendChild(this.el)
@@ -32,7 +48,17 @@ export class AircraftLabel {
 
   set(callsign: string, fl: string, colorCss: string, selected: boolean): void {
     const l = this.last
-    if (l.cs !== callsign) this.cs.textContent = l.cs = callsign
+    const ep = logoEpoch()
+    if (l.cs !== callsign || l.epoch !== ep) {
+      l.epoch = ep
+      if (l.cs !== callsign) this.cs.textContent = l.cs = callsign
+      const url = logoUrl(callsign) ?? ''
+      if (url !== l.logo) {
+        l.logo = url
+        if (url) this.logo.src = url
+        this.logo.style.display = url ? 'block' : 'none'
+      }
+    }
     if (l.fl !== fl) this.fl.textContent = l.fl = fl
     if (l.color !== colorCss) this.fl.style.color = l.color = colorCss
     if (l.sel !== selected) {
@@ -57,7 +83,7 @@ export class AircraftLabel {
 
   /** Estimated box (px) of the placed label, without touching layout. */
   box(p: ScreenPoint): { x0: number; y0: number; x1: number; y1: number } {
-    const w = 14 + (this.last.cs.length + this.last.fl.length) * 6.8
+    const w = 14 + (this.last.logo ? 20 : 0) + (this.last.cs.length + this.last.fl.length) * 6.8
     const x0 = p.x + 10
     return { x0, x1: x0 + w, y0: p.y - 8 - 19, y1: p.y - 8 }
   }

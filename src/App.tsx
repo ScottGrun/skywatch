@@ -24,6 +24,7 @@ import { Attribution } from './ui/Attribution.tsx'
 import { DetailsCard } from './ui/DetailsCard.tsx'
 import { clampVScale } from './scene/vertical.ts'
 import { VSCALE_DEFAULT } from './scene/constants.ts'
+import { loadLogoIndex, logosEnabled } from './data/logos.ts'
 import { Legend } from './ui/Legend.tsx'
 import { TopBar } from './ui/TopBar.tsx'
 import { TrafficList } from './ui/TrafficList.tsx'
@@ -87,6 +88,11 @@ export function App() {
       return true
     }
   })
+  // src/data/logos persists this (via scene.setLogos); App mirrors it for the button.
+  const [logosOn, setLogosOn] = useState(logosEnabled)
+  useEffect(() => {
+    void loadLogoIndex()
+  }, [])
   // The scene persists this itself (same key); App mirrors it for the slider.
   const [vscale, setVscale] = useState(() => {
     try {
@@ -204,6 +210,7 @@ export function App() {
     }
   }, [airspaceOn])
   useEffect(() => sceneRef.current?.setTerrain(terrainOn), [terrainOn])
+  useEffect(() => sceneRef.current?.setLogos(logosOn), [logosOn])
   const onMetar = useCallback((m: Metar | null) => {
     const s = sceneRef.current
     if (!s) return
@@ -283,6 +290,8 @@ export function App() {
         onAirspace={setAirspaceOn}
         terrainOn={terrainOn}
         onTerrain={setTerrainOn}
+        logosOn={logosOn}
+        onLogos={setLogosOn}
         vscale={vscale}
         onVscale={setVscale}
       />
