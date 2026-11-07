@@ -147,3 +147,8 @@ export async function loadTerrain(
     }
   }
 }
+
+/** Airport the loaded terrain is centred on (null until loaded). */
+export function terrainOrigin(): Airport | null {
+  return data?.ap ?? null
+}

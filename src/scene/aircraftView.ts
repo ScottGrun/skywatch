@@ -30,9 +30,9 @@ import {
   SEL_RING_SCALE,
 } from './constants'
 import { AircraftLabel } from './labels'
-import { groundY } from './terrain'
+import { SurfaceProbe } from './surface'
 import { pal, shadeHex } from './theme'
-import { vscale } from './vertical'
+import { terrainBlend, vscale } from './vertical'
 
 export interface FrameCtx {
   nowMs: number
@@ -122,6 +122,7 @@ export class AircraftView {
   private prevMs = 0
   private rate = 0
   private bank = 0
+  private probe = new SurfaceProbe()
 
   constructor(kit: ViewKit, overlay: HTMLElement) {
     this.mesh = new THREE.Mesh(aircraftGeometry('narrow'), this.mat)
@@ -147,6 +148,7 @@ export class AircraftView {
   /** (Re)bind to a new aircraft; clears history. */
   reset(ac: Aircraft, nowMs: number): void {
     this.id = ac.id
+    this.probe.invalidate()
     this.hN = 0
     this.lastSample = nowMs
     this.prevTrack = ac.trackDeg
@@ -201,9 +203,11 @@ export class AircraftView {
     this.syncModel(ac)
     const muted = ac.onGround && !selected && !hovered
     this.showLabel = !muted
-    const altKm = Math.max(0, ac.altFt - c.elevFt) * FT_TO_KM * vscale.k
+    // Not clamped at airport elevation: terrain below it (water, valleys) needs the negative offset.
+    const altKm = (ac.altFt - c.elevFt) * FT_TO_KM * vscale.k
     const x = ac.e
-    const g = groundY(ac.e, ac.n)
+    // Surface as drawn (tile-mesh triangles, not the raw DEM), cached while the aircraft barely moves.
+    const g = this.probe.at(ac.e, ac.n) * vscale.k * terrainBlend.value
     // On-ground traffic sits on the terrain; airborne never dips below it (DEM vs baro mismatch).
     const y = ac.onGround ? g : Math.max(altKm, g + 0.02)
     const z = -ac.n

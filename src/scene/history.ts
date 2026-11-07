@@ -4,6 +4,7 @@ import { rampHex } from '../core/ramp'
 import type { HistoryPoint } from '../types'
 import type { AircraftView } from './aircraftView'
 import { FT_TO_KM } from './constants'
+import { surfaceY } from './surface'
 import { vscale } from './vertical'
 
 export const HISTORY_MAX_POINTS = 1000
@@ -59,7 +60,8 @@ export function createHistory(scene: THREE.Scene): HistoryHandle {
         const { e, n: north } = toLocal(origin, p.lat, p.lon)
         const o = i * 3
         pa[o] = e
-        pa[o + 1] = Math.max(0, p.altFt - elevFt) * FT_TO_KM
+        // Never below the drawn surface (baro vs DEM mismatch): x1 units, ~20 m once scaled.
+        pa[o + 1] = Math.max((p.altFt - elevFt) * FT_TO_KM, surfaceY(e, north) + 0.007)
         pa[o + 2] = -north
         c.setHex(rampHex(p.altFt))
         const f = OLDEST_FADE + (1 - OLDEST_FADE) * (i / Math.max(1, pts.length - 1))
