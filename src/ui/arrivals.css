@@ -1,0 +1,55 @@
+/* arrivals board tab */
+.traffic-tabs {
+  display: flex;
+  gap: 16px;
+  padding: 0 16px 10px;
+}
+.traffic-tabs button {
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  padding: 2px 0 4px;
+  cursor: pointer;
+  font: 600 10px var(--mono);
+  letter-spacing: 0.1em;
+  color: var(--lbl);
+}
+.traffic-tabs button:hover {
+  color: #fff;
+}
+.traffic-tabs button.on {
+  color: #fff;
+  border-bottom-color: #fff;
+}
+.arr-row {
+  grid-template-columns: 1fr 44px 76px;
+  gap: 8px;
+  align-items: center;
+}
+.arr-head {
+  font: 600 9px var(--mono);
+  letter-spacing: 0.1em;
+  color: var(--lbl);
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--divider);
+}
+.arr-head span:last-child {
+  text-align: right;
+}
+.arr-from {
+  font: 600 12px var(--mono);
+  color: var(--sec);
+}
+.arr-air {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.arr-main {
+  min-width: 0;
+}
+.arr-empty {
+  padding: 16px;
+  font: 500 11px var(--mono);
+  color: var(--lbl);
+}

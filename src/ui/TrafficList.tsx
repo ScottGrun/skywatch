@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Aircraft } from '../types.ts'
+import { ArrivalsBoard } from './ArrivalsBoard.tsx'
 import { altColor, callsignOf, dash, fmtAlt, fmtVsShort } from './format.ts'
 
 const OPEN_KEY = 'tracon3d.listOpen'
+const TAB_KEY = 'tracon3d.listTab'
+type Tab = 'traffic' | 'arrivals'
 
 interface Props {
   aircraft: Aircraft[]
@@ -17,6 +20,10 @@ export function TrafficList({ aircraft, total, selectedId, onSelect }: Props) {
   const count = (c: string) => aircraft.filter((a) => a.category === c).length
   const [open, setOpen] = useState(() => localStorage.getItem(OPEN_KEY) !== '0')
   useEffect(() => localStorage.setItem(OPEN_KEY, open ? '1' : '0'), [open])
+  const [tab, setTab] = useState<Tab>(() =>
+    localStorage.getItem(TAB_KEY) === 'arrivals' ? 'arrivals' : 'traffic',
+  )
+  useEffect(() => localStorage.setItem(TAB_KEY, tab), [tab])
   // "L" toggles the list (ignored while typing in a field).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -52,6 +59,24 @@ export function TrafficList({ aircraft, total, selectedId, onSelect }: Props) {
         ))}
       </div>
       {open && (
+        <div className="traffic-tabs" role="tablist">
+          {(['traffic', 'arrivals'] as const).map((t) => (
+            <button
+              key={t}
+              role="tab"
+              aria-selected={tab === t}
+              className={tab === t ? 'on' : ''}
+              onClick={() => setTab(t)}
+            >
+              {t.toUpperCase()}
+            </button>
+          ))}
+        </div>
+      )}
+      {open && tab === 'arrivals' && (
+        <ArrivalsBoard aircraft={aircraft} selectedId={selectedId} onSelect={onSelect} />
+      )}
+      {open && tab === 'traffic' && (
         <div className="rows">
           {sorted.map((a) => (
             <div
