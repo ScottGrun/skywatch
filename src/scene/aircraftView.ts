@@ -56,7 +56,7 @@ export function createViewKit(): ViewKit {
     new THREE.Vector3(),
     new THREE.Vector3(0, 1, 0),
   ])
-  const dotGeo = new THREE.RingGeometry(0.35, 0.55, 24)
+  const dotGeo = new THREE.RingGeometry(0.13, 0.16, 32) // thin, tight ring at the foot of the drop line
   dotGeo.rotateX(-Math.PI / 2)
   return { dropGeo, dotGeo, trailMat: new THREE.LineBasicMaterial({ vertexColors: true }) }
 }
