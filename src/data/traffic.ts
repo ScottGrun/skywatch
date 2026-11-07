@@ -1,9 +1,10 @@
-import { resolveClass } from '../core/aircraftClass.ts'
+import { classFromCategory } from '../core/aircraftClass.ts'
 import { airlineFromCallsign } from '../core/airlines.ts'
 import { classify, etaMinutes, phase } from '../core/classify.ts'
 import { Track, type Report } from '../core/deadReckon.ts'
 import { FPM_PER_MS, FT_PER_M, KM_PER_NM, KT_PER_MS, toLocal } from '../core/geo.ts'
 import type { Aircraft, Airport, FeedStatus, TrafficSource } from '../types.ts'
+import { createAircraftDb } from './aircraftDb.ts'
 import { createEnricher } from './enrich.ts'
 
 const LAT_PAD = 1.5
@@ -54,7 +55,7 @@ export function createTraffic(airport: Airport, opts: TrafficOptions = {}): Traf
   const now = opts.now ?? Date.now
   const enricher = opts.fetch
     ? createEnricher(opts.fetch, now)
-    : (sharedEnricher ??= createEnricher(fetchFn, now))
+    : (sharedEnricher ??= createEnricher(fetchFn, now, createAircraftDb(fetchFn)))
   const codes = { icao: airport.icao, iata: airport.iata }
   const bbox = new URLSearchParams({
     lamin: String(airport.lat - LAT_PAD),
@@ -225,7 +226,11 @@ export function createTraffic(airport: Airport, opts: TrafficOptions = {}): Traf
           category,
           phase: phase(category, input),
           typeCode: meta?.typeCode ?? '',
-          aircraftClass: resolveClass(meta?.typeCode ?? '', e.emitterCat),
+          aircraftClass:
+            meta && meta.aircraftClass !== 'unknown'
+              ? meta.aircraftClass
+              : classFromCategory(e.emitterCat),
+          registration: meta?.registration || undefined,
           airline: airlineFromCallsign(e.callsign) || meta?.operator || '',
           origin,
           dest,

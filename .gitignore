@@ -8,3 +8,5 @@ screenshots
 test-results
 playwright-report
 .env
+public/data/aircraft
+public/data/types.json

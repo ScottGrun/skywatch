@@ -12,6 +12,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "bake:airports": "node scripts/build-airports.ts",
+    "bake:aircraft": "node scripts/build-aircraft-db.ts",
     "e2e": "playwright test",
     "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm build"
   },

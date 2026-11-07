@@ -61,6 +61,7 @@ export interface Aircraft {
   phase: Phase
   typeCode: string // ICAO type e.g. "A320", "" unknown
   aircraftClass: AircraftClass
+  registration?: string // tail number when known
   airline: string // e.g. "Air Canada", "" unknown
   origin: string // IATA (or ICAO) code, "" unknown → UI shows "—"
   dest: string

@@ -43,10 +43,18 @@ export function mapRoute(j: unknown): RouteInfo {
   return { origin: mapEnd(r?.origin), dest: mapEnd(r?.destination) }
 }
 
+/** Empty results returned because upstream failed (429/5xx/network), as opposed to a real 404. */
+export const transientResults = new WeakSet<object>()
+
 export function createAdsbdb(opts: { fetch: FetchFn; now?: () => number }) {
   const now = opts.now ?? Date.now
   const aircraftCache = new TtlCache<AircraftInfo>(24 * 3600_000, 5000)
   const routeCache = new TtlCache<RouteInfo>(6 * 3600_000, 5000)
+
+  const transient = <T>(v: T): T => {
+    if (v && typeof v === 'object') transientResults.add(v)
+    return v
+  }
 
   async function lookup<T>(
     cache: TtlCache<T>,
@@ -63,12 +71,12 @@ export function createAdsbdb(opts: { fetch: FetchFn; now?: () => number }) {
         cache.set(key, empty, now())
         return empty
       }
-      if (!res.ok) return empty
+      if (!res.ok) return transient(empty)
       const v = map(await res.json().catch(() => null))
       cache.set(key, v, now())
       return v
     } catch {
-      return empty
+      return transient(empty)
     }
   }
 

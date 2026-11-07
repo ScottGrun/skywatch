@@ -1,4 +1,4 @@
-import { createAdsbdb } from './adsbdb.ts'
+import { createAdsbdb, transientResults } from './adsbdb.ts'
 import { createOpenSkyClient, type FetchFn } from './opensky.ts'
 
 interface Env {
@@ -52,9 +52,10 @@ export default {
 
     const ac = /^\/api\/aircraft\/([0-9a-fA-F]{6})$/.exec(path)
     if (ac) {
-      return json(await adsbdb.aircraft(ac[1].toLowerCase()), 200, {
-        'cache-control': 'public, max-age=86400',
-      })
+      const info = await adsbdb.aircraft(ac[1].toLowerCase())
+      // Upstream failure: 503 so the client retries instead of caching "unknown" for the session.
+      if (transientResults.has(info)) return json(info, 503, { 'cache-control': 'no-store' })
+      return json(info, 200, { 'cache-control': 'public, max-age=86400' })
     }
 
     const tr = /^\/api\/track\/([0-9a-fA-F]{6})$/.exec(path)

@@ -17,7 +17,7 @@ const RULES: ReadonlyArray<readonly [AircraftClass, RegExp]> = [
   ],
   [
     'heli',
-    /^(EC\d\d|AS\d\d|AS3[25]|B06|B407|B412|B429|B427|B505|B212|B230|B47[A-Z]?|R22|R44|R66|S76|S92|S61|S64|S70|H60|A109|A119|A139|A169|A189|H160|H125|H130|H135|H145|MD52|MD60|MD90|EXPL|NH90|CH47|H47|UH1|H500|MI\d+|KA\d+|BK17|EN28|EN48|G2CA|HUCO)$/,
+    /^(EC\d\d|AS\d\d|AS3[25]|B06|B407|B412|B429|B427|B505|B212|B230|B47[A-Z]?|R22|R44|R66|S76|S92|S61|S64|S70|H60|A109|A119|A139|A169|A189|H160|H125|H130|H135|H145|MD52|MD60|EXPL|V22|NH90|CH47|H47|UH1|H500|MI\d+|KA\d+|BK17|EN28|EN48|G2CA|HUCO)$/,
   ],
   [
     'bizjet',
@@ -29,11 +29,63 @@ const RULES: ReadonlyArray<readonly [AircraftClass, RegExp]> = [
   ],
 ]
 
-/** ICAO type designator to model class; unknown or unlisted types give 'unknown'. */
-export function aircraftClassFor(typeCode: string): AircraftClass {
+/** Doc 8643 data for a type (from the baked public/data/types.json). */
+export interface TypeInfo {
+  desc: string // e.g. "L2J", "H1T"
+  wtc: string // "L" | "M" | "H" | "J"
+  name?: string // e.g. "BOEING 737-800"
+}
+
+const REGIONAL_NAME =
+  /(ERJ|EMB-?1[3-9]\d|EMBRAER 1[3-9]\d|EMBRAER E|CRJ|REGIONAL JET|FOKKER|AVRO|RJ\d|SUPERJET|SSJ|ARJ|MRJ|SPACEJET|DORNIER 328)/
+const BIZJET_NAME =
+  /(CITATION|LEARJET|GULFSTREAM|FALCON|HAWKER|CHALLENGER \d|GLOBAL \d|GLOBAL EXPRESS|PHENOM|LEGACY|PRAETOR|LATITUDE|HONDAJET|ECLIPSE|SABRELINER|WESTWIND|ASTRA|BEECHJET|PREMIER|VISION ?JET|G\d{3}|CIRRUS SF)/
+
+/** Class from an ICAO Doc 8643 description (e.g. L2J) plus wake turbulence category. */
+export function classFromDescriptor(desc: string, wtc = '', name = ''): AircraftClass {
+  const d = desc.trim().toUpperCase()
+  if (d.length < 3) return 'unknown'
+  const kind = d[0]
+  const count = d[1]
+  const eng = d[2]
+  if (kind === 'H' || kind === 'T') return 'heli' // helicopter, tiltrotor
+  if (kind === 'G') return 'piston' // gyrocopter / glider-like light aircraft
+  if (kind !== 'L' && kind !== 'S' && kind !== 'A') return 'unknown'
+  const heavy = wtc === 'H' || wtc === 'J'
+  switch (eng) {
+    case 'P':
+    case 'E':
+    case 'R':
+      return 'piston'
+    case 'T':
+      return 'turboprop'
+    case 'J': {
+      const n = Number(count)
+      if (n >= 4) return heavy ? 'quad' : 'regional'
+      if (heavy) return 'wide'
+      const nm = name.toUpperCase()
+      if (REGIONAL_NAME.test(nm)) return 'regional'
+      if (BIZJET_NAME.test(nm)) return 'bizjet'
+      if (n === 1 || wtc === 'L') return 'bizjet'
+      return 'narrow'
+    }
+    default:
+      return 'unknown'
+  }
+}
+
+/**
+ * ICAO type designator to model class. The explicit table wins; otherwise the Doc 8643
+ * descriptor (when supplied) decides; finally a few airliner family patterns.
+ */
+export function aircraftClassFor(typeCode: string, info?: TypeInfo | null): AircraftClass {
   const t = typeCode.trim().toUpperCase()
   if (!t) return 'unknown'
   for (const [cls, re] of RULES) if (re.test(t)) return cls
+  if (info) {
+    const c = classFromDescriptor(info.desc, info.wtc, info.name)
+    if (c !== 'unknown') return c
+  }
   // Common airliner families by prefix (A19N/A20N/A21N, A318-A321, B73x/B37M/B38M/B39M, MD8x, B72x, DC9).
   if (
     /^(A3[12]\d|A[12][0-9]N|B73[0-9A-Z]|B3[789]M|B72\d|MD[89]\d|DC9\d?|B71\d|B75\d|C919|MC21|TU\d+|A20N|A21N)$/.test(
@@ -73,7 +125,11 @@ export function classFromCategory(category: number | undefined): AircraftClass {
 }
 
 /** Type code wins; the emitter category only fills in when the type is missing/unrecognised. */
-export function resolveClass(typeCode: string, category?: number): AircraftClass {
-  const byType = aircraftClassFor(typeCode)
+export function resolveClass(
+  typeCode: string,
+  category?: number,
+  info?: TypeInfo | null,
+): AircraftClass {
+  const byType = aircraftClassFor(typeCode, info)
   return byType !== 'unknown' ? byType : classFromCategory(category)
 }
