@@ -23,18 +23,23 @@ interface StateRow {
   track: number
   vrMs: number
   onGround: boolean
-  category?: number
+  category?: number | string
+  t?: string // ICAO type from the feed
+  r?: string // registration from the feed
 }
 interface StatesBody {
   time: number
   states: StateRow[]
   pollMs?: number
+  source?: string
 }
 
 interface Entry {
   id: string
   callsign: string
-  emitterCat?: number
+  emitterCat?: number | string
+  feedType?: string
+  feedReg?: string
   track: Track
   seenMs: number // last time present in a response
   reportMs: number // last time the position actually changed
@@ -71,6 +76,7 @@ export function createTraffic(airport: Airport, opts: TrafficOptions = {}): Traf
   let failures = 0
   let lastSuccess = 0
   let lastStale = false
+  let source: string | null = null
   let timer: ReturnType<typeof setTimeout> | null = null
   let disposed = false
   let inFlight = false
@@ -111,6 +117,8 @@ export function createTraffic(airport: Airport, opts: TrafficOptions = {}): Traf
           id: s.icao24,
           callsign: s.callsign,
           emitterCat: s.category,
+          feedType: s.t,
+          feedReg: s.r,
           track: new Track(report),
           seenMs: t,
           reportMs: t,
@@ -120,6 +128,8 @@ export function createTraffic(airport: Airport, opts: TrafficOptions = {}): Traf
         e.seenMs = t
         e.callsign = s.callsign || e.callsign
         e.emitterCat = s.category ?? e.emitterCat
+        e.feedType = s.t ?? e.feedType
+        e.feedReg = s.r ?? e.feedReg
         // OpenSky repeats stale vectors; only restart dead reckoning on a real change.
         if (
           prev.lat !== report.lat ||
@@ -130,7 +140,10 @@ export function createTraffic(airport: Airport, opts: TrafficOptions = {}): Traf
           e.reportMs = t
         }
       }
-      enricher.request(s.icao24, e?.callsign ?? s.callsign)
+      enricher.request(s.icao24, e?.callsign ?? s.callsign, {
+        typeCode: s.t,
+        registration: s.r,
+      })
     }
     for (const [id, e] of entries) if (t - e.seenMs > LOST_MS) entries.delete(id)
   }
@@ -155,6 +168,7 @@ export function createTraffic(airport: Airport, opts: TrafficOptions = {}): Traf
       failures = 0
       lastSuccess = now()
       lastStale = res.headers.get('x-stale') === '1'
+      source = body.source ?? source
       pollMs = Math.min(60_000, Math.max(3000, body.pollMs ?? DEFAULT_POLL_MS))
       ingest(body)
       refreshStatus()
@@ -225,12 +239,12 @@ export function createTraffic(airport: Airport, opts: TrafficOptions = {}): Traf
           distNm,
           category,
           phase: phase(category, input),
-          typeCode: meta?.typeCode ?? '',
+          typeCode: meta?.typeCode || e.feedType || '',
           aircraftClass:
             meta && meta.aircraftClass !== 'unknown'
               ? meta.aircraftClass
               : classFromCategory(e.emitterCat),
-          registration: meta?.registration || undefined,
+          registration: e.feedReg || meta?.registration || undefined,
           airline: airlineFromCallsign(e.callsign) || meta?.operator || '',
           origin,
           dest,
@@ -241,6 +255,7 @@ export function createTraffic(airport: Airport, opts: TrafficOptions = {}): Traf
       return out
     },
     status: refreshStatus,
+    source: () => source,
     subscribeStatus(fn) {
       listeners.add(fn)
       return () => listeners.delete(fn)

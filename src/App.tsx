@@ -49,6 +49,7 @@ export function App() {
   const [follow, setFollow] = useState(false)
   const [trackInfo, setTrackInfo] = useState<{ id: string; start: number | null } | null>(null)
   const [status, setStatus] = useState<FeedStatus>('connecting')
+  const [source, setSource] = useState<string | null>(null)
   const [aircraft, setAircraft] = useState<Aircraft[]>([])
   const [filter, setFilter] = useState<FilterState>(() => {
     let stored: string | null = null
@@ -94,7 +95,11 @@ export function App() {
     const traffic = createTraffic(airport)
     trafficRef.current = traffic
     setStatus(traffic.status())
-    const unsub = traffic.subscribeStatus(setStatus)
+    setSource(null)
+    const unsub = traffic.subscribeStatus((s) => {
+      setStatus(s)
+      setSource(traffic.source?.() ?? null)
+    })
     scene?.setAirport(airport)
     scene?.setTraffic(traffic)
     setAircraft(traffic.snapshot(Date.now()))
@@ -186,6 +191,7 @@ export function App() {
         airport={airport}
         airports={airports}
         status={status}
+        source={source}
         onPick={pickAirport}
         filter={filter}
         aircraft={aircraft}
@@ -206,7 +212,11 @@ export function App() {
         onFollow={setFollow}
       />
       <Legend onView={onView} />
-      <Attribution text={mapAttribution()} />
+      <Attribution
+        text={
+          source === 'adsblol' ? `${mapAttribution()} · Data: adsb.lol (ODbL)` : mapAttribution()
+        }
+      />
     </div>
   )
 }

@@ -204,3 +204,15 @@ describe('search', () => {
     expect(searchAirports(list, '')).toEqual([])
   })
 })
+
+describe('ADS-B emitter category strings', () => {
+  it('maps A/B categories to classes', () => {
+    expect(classFromCategory('A7')).toBe('heli')
+    expect(classFromCategory('A5')).toBe('wide')
+    expect(classFromCategory('A3')).toBe('narrow')
+    expect(classFromCategory('A1')).toBe('piston')
+    expect(classFromCategory('B1')).toBe('piston')
+    expect(classFromCategory('C1')).toBe('unknown')
+    expect(classFromCategory(8)).toBe('heli')
+  })
+})

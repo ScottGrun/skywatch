@@ -75,6 +75,8 @@ export interface TrafficSource {
   snapshot(nowMs: number): Aircraft[]
   status(): FeedStatus
   subscribeStatus(fn: (s: FeedStatus) => void): () => void
+  /** Which upstream feed served the last response ("adsblol" | "opensky"); null before the first one. */
+  source?(): string | null
 }
 
 /** One vertex of a real track history (already limited to what the scene needs). */

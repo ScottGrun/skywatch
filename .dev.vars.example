@@ -1,2 +1,4 @@
+# adsblol (default) or opensky. OpenSky does not answer from Cloudflare, so use it for local dev only.
+TRAFFIC_SOURCE=adsblol
 OPENSKY_CLIENT_ID=
 OPENSKY_CLIENT_SECRET=

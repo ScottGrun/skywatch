@@ -1,13 +1,20 @@
 import { createAdsbdb, transientResults } from './adsbdb.ts'
+import { createAdsbLolClient } from './adsblol.ts'
+import { createTraceClient } from './trace.ts'
 import { createOpenSkyClient, type FetchFn } from './opensky.ts'
 
 interface Env {
   OPENSKY_CLIENT_ID?: string
   OPENSKY_CLIENT_SECRET?: string
+  /** `adsblol` (default) or `opensky`. */
+  TRAFFIC_SOURCE?: string
   ASSETS?: { fetch: FetchFn }
 }
 
 const doFetch: FetchFn = (input, init) => fetch(input, init)
+const adsbLol = createAdsbLolClient({ fetch: doFetch })
+const traces = createTraceClient({ fetch: doFetch })
+const wantsOpenSky = (env: Env) => env.TRAFFIC_SOURCE?.toLowerCase() === 'opensky'
 const adsbdb = createAdsbdb({ fetch: doFetch })
 let osClient: ReturnType<typeof createOpenSkyClient> | null = null
 let osKey = ''
@@ -44,7 +51,12 @@ export default {
       )
       if (![lamin, lomin, lamax, lomax].every(Number.isFinite) || lamin >= lamax || lomin >= lomax)
         return json({ error: 'lamin, lomin, lamax, lomax required' }, 400)
-      const r = await openSky(env).getStates({ lamin, lomin, lamax, lomax })
+      const r = await (wantsOpenSky(env) ? openSky(env) : adsbLol).getStates({
+        lamin,
+        lomin,
+        lamax,
+        lomax,
+      })
       const h: Record<string, string> = { 'cache-control': 'no-store' }
       if (r.stale) h['x-stale'] = '1'
       return json(r.body, r.status, h)
@@ -60,7 +72,8 @@ export default {
 
     const tr = /^\/api\/track\/([0-9a-fA-F]{6})$/.exec(path)
     if (tr) {
-      const r = await openSky(env).getTrack(tr[1].toLowerCase())
+      const id = tr[1].toLowerCase()
+      const r = await (wantsOpenSky(env) ? openSky(env).getTrack(id) : traces.getTrack(id))
       return json(r.body, r.status, { 'cache-control': 'no-store' })
     }
 

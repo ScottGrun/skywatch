@@ -17,13 +17,19 @@ export interface StateOut {
   track: number
   vrMs: number
   onGround: boolean
-  /** OpenSky emitter category 0..20 (only with extended=1); omitted when absent. */
-  category?: number
+  /** Emitter category: OpenSky number 0..20 (extended=1) or ADS-B string "A3"; omitted when absent. */
+  category?: number | string
+  /** ICAO aircraft type from the feed (adsb.lol only). */
+  t?: string
+  /** Registration from the feed (adsb.lol only). */
+  r?: string
 }
+export type TrafficSourceName = 'opensky' | 'adsblol'
 export interface StatesBody {
   time: number
   states: StateOut[]
   pollMs: number
+  source: TrafficSourceName
 }
 export interface Bbox {
   lamin: number
@@ -152,7 +158,7 @@ export function createOpenSkyClient(opts: ClientOpts) {
       }
       if (res.status === 401 || res.status === 403) token = null
       if (!res.ok) return failure(key, 502, `upstream ${res.status}`)
-      const body: StatesBody = { ...mapStates(await res.json()), pollMs }
+      const body: StatesBody = { ...mapStates(await res.json()), pollMs, source: 'opensky' }
       cache.set(key, body, now())
       return { status: 200, body, stale: false }
     } catch {

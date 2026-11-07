@@ -10,13 +10,23 @@ interface Props {
   airport: Airport | null
   airports: Airport[]
   status: FeedStatus
+  source?: string | null
   onPick: (a: Airport) => void
   filter: FilterState
   aircraft: Aircraft[]
   onFilter: (f: FilterState) => void
 }
 
-export function TopBar({ airport, airports, status, onPick, filter, aircraft, onFilter }: Props) {
+export function TopBar({
+  airport,
+  airports,
+  status,
+  source,
+  onPick,
+  filter,
+  aircraft,
+  onFilter,
+}: Props) {
   return (
     <header className="topbar">
       <div className="topbar-left">
@@ -36,7 +46,7 @@ export function TopBar({ airport, airports, status, onPick, filter, aircraft, on
         )}
       </div>
       <div className="topbar-right">
-        <LiveStatus status={status} />
+        <LiveStatus status={status} source={source} />
         <Clock />
       </div>
     </header>

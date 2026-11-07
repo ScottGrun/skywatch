@@ -8,6 +8,11 @@ export interface AircraftMeta {
   operator: string
   registration: string
 }
+/** Type/registration reported by the traffic feed itself; beats any lookup. */
+export interface FeedHint {
+  typeCode?: string
+  registration?: string
+}
 export interface RouteMeta {
   origin: string // IATA preferred, else ICAO, else ""
   dest: string
@@ -69,12 +74,13 @@ export function createEnricher(fetchFn: FetchFn, now: () => number = Date.now, d
   }
 
   /** Baked DB first (no callsign needed), then adsbdb via the worker. Throws on transient failure. */
-  async function loadAircraft(id: string): Promise<AircraftMeta> {
+  async function loadAircraft(id: string, hint?: FeedHint): Promise<AircraftMeta> {
     const make = async (typeCode: string, operator: string, registration: string) => {
       const code = typeCode.toUpperCase()
       const info = code && db ? await db.type(code) : null
       return { typeCode: code, aircraftClass: aircraftClassFor(code, info), operator, registration }
     }
+    if (hint?.typeCode) return make(hint.typeCode, '', hint.registration ?? '')
     const hit = db ? await db.lookup(id) : null
     if (hit) return make(hit.typeCode, '', hit.registration)
     const o = (await getJson(`/api/aircraft/${id}`)) as {
@@ -87,8 +93,8 @@ export function createEnricher(fetchFn: FetchFn, now: () => number = Date.now, d
 
   return {
     /** Kick off lookups (no-op if already cached/pending). */
-    request(id: string, callsign: string): void {
-      ensure(aircraft, id, () => loadAircraft(id))
+    request(id: string, callsign: string, hint?: FeedHint): void {
+      ensure(aircraft, id, () => loadAircraft(id, hint))
       const cs = callsign.trim().toUpperCase()
       if (FLIGHT_CALLSIGN.test(cs)) {
         ensure(routes, cs, () =>

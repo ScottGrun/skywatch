@@ -101,7 +101,8 @@ export function aircraftClassFor(typeCode: string, info?: TypeInfo | null): Airc
  * OpenSky ADS-B emitter category (0..20) to class, used when the type code is unknown.
  * 2 light, 3 small, 4 large, 5 high-vortex large, 6 heavy, 7 high performance, 8 rotorcraft.
  */
-export function classFromCategory(category: number | undefined): AircraftClass {
+export function classFromCategory(category: number | string | undefined): AircraftClass {
+  if (typeof category === 'string') return classFromAdsbCategory(category)
   switch (category) {
     case 2:
     case 9: // glider
@@ -124,10 +125,35 @@ export function classFromCategory(category: number | undefined): AircraftClass {
   }
 }
 
+/**
+ * ADS-B emitter category string (adsb.lol): A1 light, A2 small, A3 large, A4 high-vortex large,
+ * A5 heavy, A6 high performance, A7 rotorcraft, B1 glider, B4 ultralight.
+ */
+export function classFromAdsbCategory(category: string): AircraftClass {
+  switch (category.toUpperCase()) {
+    case 'A1':
+    case 'B1':
+    case 'B4':
+      return 'piston'
+    case 'A2':
+    case 'A6':
+      return 'bizjet'
+    case 'A3':
+    case 'A4':
+      return 'narrow'
+    case 'A5':
+      return 'wide'
+    case 'A7':
+      return 'heli'
+    default:
+      return 'unknown'
+  }
+}
+
 /** Type code wins; the emitter category only fills in when the type is missing/unrecognised. */
 export function resolveClass(
   typeCode: string,
-  category?: number,
+  category?: number | string,
   info?: TypeInfo | null,
 ): AircraftClass {
   const byType = aircraftClassFor(typeCode, info)

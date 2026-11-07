@@ -10,18 +10,19 @@ pnpm · Vite · React 19 · TypeScript (strict) · three.js · Cloudflare Worker
 
 - `src/types.ts` — shared contracts (Airport, Aircraft, TrafficSource, FlightScene). Do not change shapes without updating all layers.
 - `src/core/` — pure logic, no React/three/DOM: geo math, altitude color ramp, category/phase classification, dead reckoning, airport search ranking, airline lookup, type→class mapping. Unit tested.
-- `src/data/` — browser data layer: airport index loading, OpenSky polling via `/api/*`, `TrafficSource` implementation, route/type enrichment.
+- `src/data/` — browser data layer: airport index loading, traffic polling via `/api/*`, `TrafficSource` implementation, route/type enrichment.
 - `src/scene/` — three.js only (no React). `createFlightScene(container): FlightScene`. Tuning values in `src/scene/constants.ts`.
 - `src/ui/` — React panels (top bar, search, traffic list, details card, legend). 2D only.
 - `src/App.tsx` — wires everything; owns app state (airport, selectedId, follow).
-- `worker/` — Cloudflare Worker: `/api/states?lamin&lomin&lamax&lomax`, `/api/aircraft/:icao24`, `/api/route/:callsign`. Caches, backs off on 429, holds OpenSky OAuth client credentials server-side.
+- `worker/` — Cloudflare Worker: `/api/states?lamin&lomin&lamax&lomax` (compact JSON + `source`, `pollMs`), `/api/aircraft/:icao24` and `/api/route/:callsign` (adsbdb), `/api/track/:icao24` (current-flight history). Caches, backs off on 429/5xx. `TRAFFIC_SOURCE` env var picks the traffic provider: `adsblol` (default; api.adsb.lol point endpoint, 5 s polling, tracks from adsb.lol readsb trace files `adsb.lol/data/traces/<hex[-2:]>/trace_full_<hex>.json` merged with `trace_recent_`) or `opensky` (needs `.dev.vars`; OpenSky does not answer from Cloudflare's network, so use it for local dev only). Feed also passes `t` (ICAO type), `r` (registration) and emitter `category` (ADS-B "A3" string or OpenSky number); the client prefers `t`/`r` over the baked DB/adsbdb.
+- Data source: adsb.lol, ODbL 1.0, open API with no key (optional key on request), no published rate limit. UI shows "Data: adsb.lol (ODbL)" attribution. adsbdb works from Cloudflare.
 - `scripts/build-airports.ts` — downloads OurAirports CSVs → `public/data/airports.json`.
 
 ## Rules
 
 1. Per-frame work never goes through React state. UI refreshes at ~2 Hz from `TrafficSource.snapshot()`.
 2. Small files, one job each, ~200 lines max.
-3. Secrets: `.dev.vars` (worker: `OPENSKY_CLIENT_ID`, `OPENSKY_CLIENT_SECRET`) and `.env.local` (`VITE_MAPBOX_TOKEN`). Both gitignored; `.dev.vars.example` / `.env.example` committed. Everything must work with none set (anonymous OpenSky, Esri World Dark Gray tiles fallback).
+3. Secrets: `.dev.vars` (worker: `TRAFFIC_SOURCE`, `OPENSKY_CLIENT_ID`, `OPENSKY_CLIENT_SECRET`) and `.env.local` (`VITE_MAPBOX_TOKEN`). Both gitignored; `.dev.vars.example` / `.env.example` committed. Everything must work with none set (anonymous OpenSky, Esri World Dark Gray tiles fallback).
 4. Map: Mapbox raster tiles (`dark-v11`) when `VITE_MAPBOX_TOKEN` is set, else Esri World Dark Gray (CARTO's free tiles now require an API key). Show matching attribution.
 5. Tests never hit the network.
 6. `pnpm verify` (typecheck, lint, test, build) is the definition of done.
