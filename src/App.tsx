@@ -296,6 +296,7 @@ export function App() {
       />
       <DetailsCard
         aircraft={selected}
+        airports={airports}
         follow={follow}
         trackStart={trackInfo?.id === selectedId ? trackInfo.start : undefined}
         onClose={() => setSelectedId(null)}

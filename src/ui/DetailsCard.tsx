@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { ownerIfDifferent, type AircraftDetails } from '../core/details.ts'
 import { getAircraftDetails } from '../data/details.ts'
-import type { Aircraft } from '../types.ts'
+import type { Aircraft, Airport } from '../types.ts'
 import { AirlineLogo } from './AirlineLogo.tsx'
 import { altColor, callsignOf, dash, fmtInt, fmtVsLong, pad3, progress } from './format.ts'
 
@@ -9,6 +9,8 @@ const utcHm = (s: number) => new Date(s * 1000).toISOString().slice(11, 16)
 
 interface Props {
   aircraft: Aircraft | null
+  /** Used to place origin/destination for the route progress bar. */
+  airports: Airport[]
   follow: boolean
   /** Track history start (unix s); null = unavailable; undefined = still loading (line hidden). */
   trackStart?: number | null
@@ -18,11 +20,20 @@ interface Props {
 
 export function DetailsCard({
   aircraft: a,
+  airports,
   follow,
   trackStart,
   onClose,
   onFollow,
 }: Props) {
+  const byCode = useMemo(() => {
+    const m = new Map<string, Airport>()
+    for (const ap of airports) {
+      m.set(ap.icao, ap)
+      if (ap.iata) m.set(ap.iata, ap)
+    }
+    return m
+  }, [airports])
   const id = a?.id
   const typeCode = a?.typeCode ?? ''
   const [det, setDet] = useState<{ id: string; d: AircraftDetails } | null>(null)
@@ -38,7 +49,7 @@ export function DetailsCard({
   const d = det?.id === a.id ? det.d : null
   const owner = d ? ownerIfDifferent(a.airline, d.owner) : ''
   const color = altColor(a)
-  const pct = progress(a) * 100
+  const pct = progress(a, byCode.get(a.origin), byCode.get(a.dest)) * 100
   const stats: [string, string, string?][] = [
     ['ALTITUDE', a.onGround ? 'GND' : `${fmtInt(a.altFt)} ft`, color],
     ['VERTICAL', fmtVsLong(a.vsFpm)],

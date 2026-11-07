@@ -1,4 +1,5 @@
 import type { Aircraft } from '../types.ts'
+import { distanceNm, type LatLon } from '../core/geo.ts'
 import { hexCss, rampHex } from '../core/ramp.ts'
 
 export const dash = (s: string): string => s || '—'
@@ -20,8 +21,14 @@ export function fmtVsLong(fpm: number): string {
   return r > 0 ? `+${fmtInt(r)} fpm` : r < 0 ? `−${fmtInt(-r)} fpm` : 'Level'
 }
 
-export function progress(a: Aircraft): number {
-  const f = a.category === 'ARR' ? 1 - a.distNm / 40 : a.distNm / 40
+/** Route progress origin -> dest (0..1) when both airports are known, else local-area progress. */
+export function progress(a: Aircraft, from?: LatLon | null, to?: LatLon | null): number {
+  let f: number
+  if (from && to) {
+    const done = distanceNm(from, a)
+    const left = distanceNm(a, to)
+    f = done + left > 0 ? done / (done + left) : 0
+  } else f = a.category === 'ARR' ? 1 - a.distNm / 40 : a.distNm / 40
   return Math.min(1, Math.max(0, f))
 }
 
