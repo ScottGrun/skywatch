@@ -49,7 +49,7 @@ export const PALETTES: Record<Theme, ScenePalette> = {
       '--tag-text': '#fff',
       '--ring-label': '#5b6f80',
       '--halo': '#050608',
-      '--alt-mix': '100%',
+      '--alt-lmax': '1',
     },
   },
   light: {
@@ -64,7 +64,7 @@ export const PALETTES: Record<Theme, ScenePalette> = {
     windOpacity: 0.65,
     select: 0x16202a,
     hillshade: 0.4,
-    shade: 0.78,
+    shade: 1,
     tint: { mapbox: WHITE, custom: WHITE, esri: WHITE },
     vars: {
       '--tag-bg': 'rgba(255,255,255,.9)',
@@ -73,7 +73,7 @@ export const PALETTES: Record<Theme, ScenePalette> = {
       '--tag-text': '#0d141b',
       '--ring-label': '#46586a',
       '--halo': 'rgba(255,255,255,.9)',
-      '--alt-mix': '62%',
+      '--alt-lmax': '0.62',
     },
   },
 }
@@ -98,4 +98,4 @@ export function applyOverlayVars(el: HTMLElement, t: Theme): void {
 }
 
 /** CSS color for text that must stay readable on the current theme (darker in light mode). */
-export const readable = (css: string): string => `color-mix(in srgb, ${css} var(--alt-mix), black)`
+export const readable = (css: string): string => `oklch(from ${css} min(l, var(--alt-lmax, 1)) c h)`

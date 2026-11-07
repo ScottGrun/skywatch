@@ -21,8 +21,8 @@
   --track: #1f2a34;
   --cap: rgba(5, 6, 8, 0.8);
   --shadow: none;
-  /* altitude-ramp colors: --alt-mix darkens them (color-mix), --alt-b is the same for filters */
-  --alt-mix: 100%;
+  /* altitude-ramp colors: --alt-lmax caps OKLCH lightness on light (keeps saturation) */
+  --alt-lmax: 1;
   --alt-b: 1;
   --mono: 'IBM Plex Mono', monospace;
   --sans: 'IBM Plex Sans Condensed', sans-serif;
@@ -51,8 +51,8 @@
   --track: #cdd6de;
   --cap: rgba(255, 255, 255, 0.82);
   --shadow: 0 1px 6px rgba(20, 30, 40, 0.14);
-  --alt-mix: 62%;
-  --alt-b: 0.62;
+  --alt-lmax: 0.62;
+  --alt-b: 1;
   color-scheme: light;
 }
 .app {
