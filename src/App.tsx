@@ -182,6 +182,7 @@ export function App() {
     setFollow(id !== null)
   }, [])
   const onView = useCallback((v: ViewPreset) => sceneRef.current?.view(v), [])
+  const onHome = useCallback(() => sceneRef.current?.home(), [])
 
   const selected = visible.find((a) => a.id === selectedId) ?? null
   return (
@@ -196,6 +197,7 @@ export function App() {
         filter={filter}
         aircraft={aircraft}
         onFilter={setFilter}
+        onHome={onHome}
       />
       <TrafficList
         aircraft={visible}

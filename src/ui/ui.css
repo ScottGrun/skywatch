@@ -87,6 +87,21 @@ button {
   background: var(--accent);
   transform: rotate(45deg);
 }
+.apt {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.apt:hover .apt-name,
+.apt:focus-visible .apt-name {
+  color: #fff;
+  text-decoration: underline;
+  text-decoration-color: var(--accent, #2ff0c0);
+  text-underline-offset: 3px;
+}
 .apt-name {
   font: 600 14px var(--sans);
 }

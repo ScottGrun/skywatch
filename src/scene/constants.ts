@@ -113,3 +113,6 @@ export const CLASS_SIZE_FLOOR = 0.52
 export const GROUND_COLOR = 0x5b6670
 export const GROUND_EMISSIVE = 0.25
 export const HOVER_PICK_PX = 28
+
+// Slow orbit around the airport after picking it (or pressing home); any camera input stops it.
+export const AUTO_ORBIT_RAD_S = 0.06 // ≈ one revolution per 105 s

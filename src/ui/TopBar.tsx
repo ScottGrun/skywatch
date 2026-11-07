@@ -15,6 +15,7 @@ interface Props {
   filter: FilterState
   aircraft: Aircraft[]
   onFilter: (f: FilterState) => void
+  onHome: () => void
 }
 
 export function TopBar({
@@ -26,6 +27,7 @@ export function TopBar({
   filter,
   aircraft,
   onFilter,
+  onHome,
 }: Props) {
   return (
     <header className="topbar">
@@ -37,12 +39,12 @@ export function TopBar({
         <AirportSearch airports={airports} onPick={onPick} />
         <FilterDropdown filter={filter} aircraft={aircraft} onChange={onFilter} />
         {airport && (
-          <div className="apt">
+          <button type="button" className="apt" title="Back to airport" onClick={onHome}>
             <div className="apt-name">{airport.name}</div>
             <div className="apt-sub">
               {airport.icao} · {fmtCoord(airport.lat, airport.lon)}
             </div>
-          </div>
+          </button>
         )}
       </div>
       <div className="topbar-right">

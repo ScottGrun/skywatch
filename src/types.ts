@@ -99,6 +99,8 @@ export interface FlightScene {
   /** Hide aircraft failing `pred` (no mesh/label/trail/ring, not pickable). null shows all. */
   setFilter(pred: ((a: Aircraft) => boolean) | null): void
   view(preset: ViewPreset): void
+  /** Ease back over the airport (cancels follow) and start the idle orbit. */
+  home(): void
   on(event: 'select', fn: (id: string | null) => void): () => void
   on(event: 'follow', fn: (on: boolean) => void): () => void
   dispose(): void

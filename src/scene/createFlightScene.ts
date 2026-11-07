@@ -130,7 +130,7 @@ export function createFlightScene(container: HTMLElement): FlightScene {
     statics = createStaticLabels(overlay, labelDefs)
     select(null)
     setFollow(false)
-    rig.reset()
+    rig.home()
   }
 
   // --- input ---
@@ -250,6 +250,10 @@ export function createFlightScene(container: HTMLElement): FlightScene {
     },
     setFilter(pred) {
       filter = pred
+    },
+    home() {
+      setFollow(false)
+      rig.home()
     },
     view(preset: ViewPreset) {
       setFollow(false)

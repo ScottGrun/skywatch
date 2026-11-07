@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import type { ViewPreset } from '../types'
 import {
+  AUTO_ORBIT_RAD_S,
   EASE,
   EASE_FOLLOW,
   FOLLOW_PHI,
@@ -32,6 +33,8 @@ export class CameraRig {
   private cam: Pose = { ...HOME_POSE }
   private goal: Pose = { ...HOME_POSE }
   following = false
+  /** Slowly circle the target until the user moves the camera. */
+  autoOrbit = false
 
   /** Current (eased) orbit target on the ground plane and orbit distance. */
   get orbitState(): { x: number; z: number; r: number } {
@@ -49,7 +52,14 @@ export class CameraRig {
     if (snap) Object.assign(this.cam, HOME_POSE)
   }
 
+  /** Ease back to the default view over the airport and start the idle orbit. */
+  home(): void {
+    this.reset()
+    this.autoOrbit = true
+  }
+
   preset(v: ViewPreset): void {
+    this.autoOrbit = false
     Object.assign(this.goal, HOME_POSE)
     if (v === 'top') Object.assign(this.goal, TOP)
     if (v === 'side') Object.assign(this.goal, SIDE)
@@ -59,6 +69,7 @@ export class CameraRig {
   setFollowing(on: boolean): void {
     this.following = on
     if (on) {
+      this.autoOrbit = false
       this.goal.r = Math.min(this.goal.r, FOLLOW_R)
       this.goal.phi = Math.min(this.goal.phi, FOLLOW_PHI)
     } else {
@@ -67,12 +78,14 @@ export class CameraRig {
   }
 
   orbit(dx: number, dy: number): void {
+    if (dx || dy) this.autoOrbit = false
     this.goal.theta -= dx * 0.005
     this.goal.phi = Math.min(PHI_MAX, Math.max(PHI_MIN, this.goal.phi - dy * 0.004))
   }
 
   /** Pan the target in the ground plane relative to the current heading. */
   pan(dx: number, dy: number): void {
+    this.autoOrbit = false
     const g = this.goal
     const k = g.r * 0.0016
     const st = Math.sin(g.theta)
@@ -82,6 +95,7 @@ export class CameraRig {
   }
 
   zoom(deltaY: number): void {
+    this.autoOrbit = false
     this.goal.r = Math.min(R_MAX, Math.max(R_MIN, this.goal.r * Math.exp(deltaY * 0.0012)))
   }
 
@@ -94,6 +108,7 @@ export class CameraRig {
       g.ty = target.y
       g.tz = target.z
     }
+    if (this.autoOrbit && !this.following) g.theta += dt * AUTO_ORBIT_RAD_S
     const k = 1 - Math.exp(-dt * EASE)
     const kt = this.following ? 1 - Math.exp(-dt * EASE_FOLLOW) : k
     c.theta += (g.theta - c.theta) * k
