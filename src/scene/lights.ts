@@ -1,12 +1,12 @@
 import * as THREE from 'three'
 import { airportLights, type LightSpec } from '../core/lightLayout'
 import type { Airport } from '../types'
-import { D2R, DECOR_LIFT, RUNWAY_MIN_WIDTH_KM } from './constants'
+import { D2R, DETAIL_LIFT, RUNWAY_MIN_WIDTH_KM } from './constants'
 import { createLightMaterial, KIND_LOOK, LOOK } from './lightMaterial'
 import { terrainY } from './terrain'
 
-/** Lights float this far (world km) above the runway slab plane so they are never buried in it. */
-export const LIGHT_LIFT = 0.03
+/** Lights sit this far (world km, ~2 m) above the pavement so the sprites are not cut by it. */
+export const LIGHT_LIFT = 0.002
 /** PAPI transition angles (deg) from the nearest box outward: white above, red below. */
 const PAPI_DEG = [3.5, 3.17, 2.83, 2.5] as const
 /** Rabbit: sweeps per second and trailing length in stations. */
@@ -103,7 +103,7 @@ export function buildLights(ap: Airport): LightsHandle {
         const dx = cam.x - pos[o]
         const dz = cam.z - pos[o + 2]
         const hd = Math.hypot(dx, dz) || 1e-6
-        const ly = pos[o + 1] * kY + DECOR_LIFT + LIGHT_LIFT
+        const ly = pos[o + 1] * kY + vk * DETAIL_LIFT + LIGHT_LIFT
         const ang = Math.atan2((cam.y - ly) / vk, hd) / D2R
         const isWhite = ang > PAPI_DEG[p.idx]
         if (isWhite !== p.white) {

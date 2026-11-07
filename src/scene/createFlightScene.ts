@@ -37,6 +37,7 @@ import { initialTheme } from '../data/theme'
 import { projectToScreen, type ScreenPoint } from './projection'
 import { buildRings, type StaticLabelDef } from './rings'
 import { buildRunways, type RunwaysHandle } from './runways'
+import { drapedY } from './pavement'
 import { buildLights, LIGHT_LIFT, type LightsHandle } from './lights'
 import { setLightViewport } from './lightMaterial'
 import { setLogosEnabled } from '../data/logos'
@@ -197,7 +198,7 @@ export function createFlightScene(container: HTMLElement): FlightScene {
     decor = new THREE.Group()
     world.add(decor)
     const defs = buildRings(decor)
-    runways = buildRunways(decor, airport)
+    runways = buildRunways(decor, airport, maxAniso)
     // Lights are a night-only feature: not built at all in the light theme.
     lights = theme === 'dark' ? buildLights(airport) : null
     if (lights) {
@@ -295,9 +296,10 @@ export function createFlightScene(container: HTMLElement): FlightScene {
       const b = Math.max(terrainBlend.value, 1e-3)
       decor.position.y = DECOR_LIFT / vk
       decor.scale.y = b
-      if (runways) runways.slabs.scale.y = 1 / (vk * b)
+      // Pavement and lights sit on the drawn detail patch (same plane, polygon offset wins).
+      if (runways) runways.pavement.position.y = drapedY(vk, b)
       if (lights) {
-        lights.root.position.y = LIGHT_LIFT / (vk * b)
+        lights.root.position.y = drapedY(vk, b, LIGHT_LIFT)
         lights.update(rig.camera.position, t / 1000, b * vk, vk)
       }
     }

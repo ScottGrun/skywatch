@@ -11,6 +11,7 @@ import {
   DOT_OPACITY,
   DROP_OPACITY,
   EMISSIVE,
+  DETAIL_LIFT,
   FT_TO_KM,
   GROUND_COLOR,
   GROUND_EMISSIVE,
@@ -44,6 +45,11 @@ export interface FrameCtx {
 const HIST = TRAIL_POINTS - 1
 const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v))
 const tmpC = new THREE.Color()
+
+function footOf(g: THREE.BufferGeometry): number {
+  g.computeBoundingBox()
+  return g.boundingBox?.min.y ?? 0
+}
 
 /** Geometry/material shared by all views. */
 export interface ViewKit {
@@ -112,6 +118,8 @@ export class AircraftView {
   private modelName: string | null = null
   private modelBound = false
   private size = 1
+  /** Lowest model point in model units (negative: the origin is mid-fuselage). */
+  private footY = 0
   private posA = new THREE.BufferAttribute(new Float32Array(TRAIL_POINTS * 3), 3)
   private colA = new THREE.BufferAttribute(new Float32Array(TRAIL_POINTS * 3), 3)
   private hPos = new Float32Array(HIST * 3)
@@ -171,12 +179,14 @@ export class AircraftView {
 
   private bindClass(cls: AircraftClass): void {
     this.mesh.geometry = aircraftGeometry(cls)
+    this.footY = footOf(this.mesh.geometry)
     this.size = classScale(cls)
     this.setRotors(aircraftRotors(cls))
   }
 
   private bindModel(m: ModelInfo): void {
     this.mesh.geometry = m.geo
+    this.footY = footOf(m.geo)
     this.size = modelScale(m.lengthM)
     this.setRotors(m.rotors)
   }
@@ -207,7 +217,10 @@ export class AircraftView {
     const altKm = (ac.altFt - c.elevFt) * FT_TO_KM * vscale.k
     const x = ac.e
     // Surface as drawn (tile-mesh triangles, not the raw DEM), cached while the aircraft barely moves.
-    const g = this.probe.at(ac.e, ac.n) * vscale.k * terrainBlend.value
+    // With terrain off the detail patch still sits flat at its lift, so blend toward that, not 0.
+    const tb = terrainBlend.value
+    const g =
+      (this.probe.at(ac.e, ac.n) * tb + (ac.onGround ? (1 - tb) * DETAIL_LIFT : 0)) * vscale.k
     // On-ground traffic sits on the terrain; airborne never dips below it (DEM vs baro mismatch).
     const y = ac.onGround ? g : Math.max(altKm, g + 0.02)
     const z = -ac.n
@@ -245,7 +258,8 @@ export class AircraftView {
       (ac.vsFpm / 60) * FT_TO_KM * vscale.k,
       Math.max(ac.gsKt, 60) * KT_TO_KMS,
     )
-    this.body.position.set(x, y, z)
+    // Ground traffic: lift the model so its lowest point (wheels) rests on the surface.
+    this.body.position.set(x, ac.onGround ? y - this.footY * sc * size : y, z)
     this.body.scale.setScalar(sc * size)
     for (const r of this.rotors) {
       r.angle = advanceSpin(r.angle, r.rate, c.dt)

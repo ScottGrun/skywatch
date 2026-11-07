@@ -40,7 +40,7 @@ export const RING_LABEL_BEARING = 150
 export const COMPASS_RADIUS_KM = 80
 
 // Runways
-export const RUNWAY_MIN_WIDTH_KM = 0.11
+export const RUNWAY_MIN_WIDTH_KM = 0.055
 export const APPROACH_LEN_KM = 22
 export const ACTIVE_REFRESH_MS = 2000
 

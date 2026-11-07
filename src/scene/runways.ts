@@ -3,6 +3,7 @@ import { angleDiffDeg, toLocal } from '../core/geo'
 import type { Aircraft, Airport } from '../types'
 import { ACTIVE_REFRESH_MS, APPROACH_LEN_KM, D2R, FT_TO_KM, RUNWAY_MIN_WIDTH_KM } from './constants'
 import { applyRadialFog } from './radialFog'
+import { buildPavement } from './pavement'
 import { terrainY } from './terrain'
 import { pal } from './theme'
 
@@ -19,13 +20,14 @@ interface RunwayGeom {
   a: Threshold
   b: Threshold
   widthKm: number
+  idents: readonly [string, string]
 }
 
 export interface RunwaysHandle {
   thresholds: readonly Threshold[]
-  /** Runway slabs: the scene counter-scales this group so they keep a constant world thickness. */
-  slabs: THREE.Group
-  /** Slab color: darker pavement while runway lights are on so the lights read. */
+  /** Runway surfaces + markings; the scene positions this group so it lies on the drawn map. */
+  pavement: THREE.Group
+  /** Dims the pavement slightly while runway lights are on. */
   setLit(lit: boolean): void
   /** Re-pick active landing ends from arriving traffic (throttled internally). */
   updateActive(aircraft: readonly Aircraft[], nowMs: number): void
@@ -43,6 +45,7 @@ export function runwayGeoms(ap: Airport): RunwayGeom[] {
         a: { ...a, headingDeg: r.le.headingDeg },
         b: { ...b, headingDeg: r.he.headingDeg },
         widthKm: Math.max(RUNWAY_MIN_WIDTH_KM, r.widthFt * FT_TO_KM),
+        idents: [r.le.ident, r.he.ident] as const,
       }
     })
   }
@@ -55,6 +58,7 @@ export function runwayGeoms(ap: Airport): RunwayGeom[] {
       a: { e: e - (de * len) / 2, n: n - (dn * len) / 2, headingDeg: h },
       b: { e: e + (de * len) / 2, n: n + (dn * len) / 2, headingDeg: (h + 180) % 360 },
       widthKm: RUNWAY_MIN_WIDTH_KM,
+      idents: ['09', '27'] as const,
     }
   }
   return [mk(3.2, 0, 0), mk(2.8, 0.9 * Math.sin(o), 0.9 * Math.cos(o))]
@@ -76,24 +80,14 @@ function arrivalsOn(t: Threshold, aircraft: readonly Aircraft[]): number {
   return c
 }
 
-export function buildRunways(group: THREE.Group, ap: Airport): RunwaysHandle {
+export function buildRunways(group: THREE.Group, ap: Airport, aniso: number): RunwaysHandle {
   const geoms = runwayGeoms(ap)
   const thresholds: Threshold[] = []
   const lines: THREE.Line[] = []
-  const mats: THREE.MeshBasicMaterial[] = []
-  const slabs = new THREE.Group()
-  group.add(slabs)
+  const paved = buildPavement(geoms, aniso)
+  group.add(paved.group)
 
   for (const g of geoms) {
-    const dx = g.b.e - g.a.e
-    const dn = g.b.n - g.a.n
-    const len = Math.hypot(dx, dn) || 0.1
-    const mat = applyRadialFog(new THREE.MeshBasicMaterial({ color: pal().runway }))
-    mats.push(mat)
-    const m = new THREE.Mesh(new THREE.BoxGeometry(g.widthKm, 0.04, len), mat)
-    m.position.set((g.a.e + g.b.e) / 2, 0, -(g.a.n + g.b.n) / 2)
-    m.rotation.y = Math.atan2(dx, -dn)
-    slabs.add(m)
     thresholds.push(g.a, g.b)
   }
 
@@ -135,10 +129,8 @@ export function buildRunways(group: THREE.Group, ap: Airport): RunwaysHandle {
   let lastMs = -Infinity
   return {
     thresholds,
-    slabs,
-    setLit(lit) {
-      for (const m of mats) m.color.setHex(lit ? pal().runwayLit : pal().runway)
-    },
+    pavement: paved.group,
+    setLit: paved.setLit,
     updateActive(aircraft, nowMs) {
       if (nowMs - lastMs < ACTIVE_REFRESH_MS) return
       lastMs = nowMs
