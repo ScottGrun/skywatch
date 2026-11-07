@@ -16,6 +16,8 @@ import {
   GROUND_COLOR,
   GROUND_EMISSIVE,
   KT_TO_KMS,
+  MIN_PX_AIR,
+  MIN_PX_GROUND,
   PITCH_MAX,
   RING_MIN_ANGLE,
   ROLL_GAIN,
@@ -41,6 +43,8 @@ export interface FrameCtx {
   dt: number // seconds since last frame
   elevFt: number
   cam: THREE.Vector3
+  /** Pixels per km at 1 km distance (viewport height / (2 tan(fov/2))). */
+  focalPx: number
 }
 
 const HIST = TRAIL_POINTS - 1
@@ -246,7 +250,13 @@ export class AircraftView {
     this.camDist = Math.hypot(c.cam.x - x, c.cam.y - y, c.cam.z - z)
     const sc = clamp(this.camDist / SCALE_DIV, SCALE_MIN, SCALE_MAX)
     // Drawn length (km): true size near the camera, exaggerated size far away.
-    const len = effectiveSize(this.camDist, this.trueKm, sc * this.size)
+    const minPx = ac.onGround ? MIN_PX_GROUND : MIN_PX_AIR
+    const len = effectiveSize(
+      this.camDist,
+      this.trueKm,
+      sc * this.size,
+      (minPx * this.camDist) / c.focalPx,
+    )
     this.scale = len
     // Rings stay readable when the true-size plane is only a few pixels long.
     const ringLen = Math.max(len, this.camDist * RING_MIN_ANGLE)

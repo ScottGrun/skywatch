@@ -264,7 +264,7 @@ export function createFlightScene(container: HTMLElement): FlightScene {
   const hover = createHover(cv, (x, y) => pickNearest(pool.active.values(), rig.camera, w, h, x, y))
 
   // --- frame loop ---
-  const ctx: FrameCtx = { nowMs: 0, dt: 0, elevFt: 0, cam: rig.camera.position }
+  const ctx: FrameCtx = { nowMs: 0, dt: 0, elevFt: 0, cam: rig.camera.position, focalPx: 1 }
   const occupied: Rect[] = []
   const seen = new Set<string>()
   const gone: string[] = []
@@ -327,6 +327,7 @@ export function createFlightScene(container: HTMLElement): FlightScene {
 
     ctx.nowMs = nowMs
     ctx.dt = dt
+    ctx.focalPx = h / (2 * Math.tan((rig.camera.fov * Math.PI) / 360))
     ctx.elevFt = airport?.elevationFt ?? 0
     const hoverId = hover.tick()
     seen.clear()

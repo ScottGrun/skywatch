@@ -2,6 +2,7 @@ import type { AircraftClass } from '../types'
 import {
   CLASS_SIZE,
   CLASS_SIZE_FLOOR,
+  MIN_SIZE_FADE_KM,
   TRUE_LENGTH_M,
   TRUE_SIZE_FAR_KM,
   TRUE_SIZE_NEAR_KM,
@@ -33,10 +34,21 @@ export function trueLengthKm(cls: AircraftClass): number {
  * Drawn length (km) from camera distance: true size up close, the exaggerated
  * size far away, smoothstep between TRUE_SIZE_NEAR_KM and TRUE_SIZE_FAR_KM.
  */
-export function effectiveSize(distKm: number, trueKm: number, exaggeratedKm: number): number {
+export function effectiveSize(
+  distKm: number,
+  trueKm: number,
+  exaggeratedKm: number,
+  minKm = 0,
+): number {
   const t = Math.min(
     1,
     Math.max(0, (distKm - TRUE_SIZE_NEAR_KM) / (TRUE_SIZE_FAR_KM - TRUE_SIZE_NEAR_KM)),
   )
-  return trueKm + (exaggeratedKm - trueKm) * t * t * (3 - 2 * t)
+  const len = trueKm + (exaggeratedKm - trueKm) * t * t * (3 - 2 * t)
+  // On-screen floor, faded out below MIN_SIZE_FADE_KM so close views keep real size.
+  const f = Math.min(
+    1,
+    Math.max(0, (distKm - MIN_SIZE_FADE_KM[0]) / (MIN_SIZE_FADE_KM[1] - MIN_SIZE_FADE_KM[0])),
+  )
+  return Math.max(len, minKm * f)
 }

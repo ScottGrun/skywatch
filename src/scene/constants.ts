@@ -131,6 +131,10 @@ export const TRUE_SIZE_NEAR_KM = 3
 export const TRUE_SIZE_FAR_KM = 30
 /** Smallest on-screen half-length (px) used for picking, so tiny true-size aircraft stay clickable. */
 export const PICK_MIN_PX = 14
+/** Minimum drawn aircraft length on screen (px); fades out between these camera distances (km) so real size wins up close. */
+export const MIN_PX_AIR = 14
+export const MIN_PX_GROUND = 10
+export const MIN_SIZE_FADE_KM = [1.5, 2.5] as const
 /** Ground/selection rings never get smaller than this angular size (fraction of camera distance). */
 export const RING_MIN_ANGLE = 0.004
 
