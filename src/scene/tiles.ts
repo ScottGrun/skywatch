@@ -3,6 +3,7 @@ import { toLocal } from '../core/geo'
 import type { Airport, Theme } from '../types'
 import { TILE_FAR_DROP, TILE_R, TILE_R_FAR, TILE_ZOOM, TILE_ZOOM_FAR } from './constants'
 import { PALETTES } from './theme'
+import { buildDetailPatch, type DetailPatch } from './detailPatch'
 import { createTileLoader, type TileSlot } from './tileLoader'
 import { applyRadialFog } from './radialFog'
 import { runwayGeoms } from './runways'
@@ -55,14 +56,17 @@ export function buildTiles(
   onReady: () => void,
 ): TilesStats {
   const slots: TileSlot[] = []
+  let detail: DetailPatch | null = null
+  let curTheme = theme
   const tk = token()
   const tiles = createTileLoader(tk, maxAniso, styleFor, tintFor)
   const stats: TilesStats = {
     triangles: 0,
     terrainMs: null,
     setTheme(t) {
+      curTheme = t
       base.material.color.setHex(PALETTES[t].bg)
-      for (const s of slots) tiles.load(s, t)
+      for (const s of [...slots, ...(detail?.slots ?? [])]) tiles.load(s, t)
     },
   }
   const t0 = performance.now()
@@ -142,6 +146,7 @@ export function buildTiles(
       await new Promise((r) => setTimeout(r))
     }
     if (!alive) return
+    detail = buildDetailPatch(group, ap, tiles, curTheme, () => alive)
     stats.terrainMs = performance.now() - t0
     onReady()
     console.info(

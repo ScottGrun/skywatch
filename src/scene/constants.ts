@@ -115,3 +115,14 @@ export const HOVER_PICK_PX = 28
 
 // Slow orbit around the airport after picking it (or pressing home); any camera input stops it.
 export const AUTO_ORBIT_RAD_S = 0.06 // ≈ one revolution per 105 s
+
+// High-resolution detail patch around the airport (zoom 15 raster tiles)
+export const DETAIL_ZOOM = 15
+/** Half-width of the detail patch, km (8 km square). */
+export const DETAIL_HALF_KM = 4
+/** Mesh subdivisions per detail tile side (~40 m at z15; follows relief and runway flattening). */
+export const DETAIL_SEGS = 20
+/** Width of the alpha fade at the patch edge, km. */
+export const DETAIL_FADE_KM = 0.9
+/** Lift of the patch over the z10 surface, km at x1 vertical scale (hides coarse-mesh poke-through). */
+export const DETAIL_LIFT = 0.006

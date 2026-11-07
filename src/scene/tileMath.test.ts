@@ -4,6 +4,7 @@ import {
   parseMapboxStyle,
   latToTileY,
   lonToTileX,
+  patchTileRange,
   tileUrl,
   tileXToLon,
   tileYToLat,
@@ -44,5 +45,24 @@ describe('tileMath', () => {
     expect(tileUrl(1, 2, 3, 't', 'mapbox://styles/me/abc')).toContain(
       '/styles/v1/me/abc/tiles/512/1/2/3@2x',
     )
+  })
+})
+
+describe('patchTileRange', () => {
+  it('covers the point and about 8 km of z15 tiles around KSEA', () => {
+    const r = patchTileRange(47.45, -122.31, 15, 4)
+    const x = Math.floor(lonToTileX(-122.31, 15))
+    const y = Math.floor(latToTileY(47.45, 15))
+    expect(r.x0).toBeLessThanOrEqual(x)
+    expect(r.x1).toBeGreaterThanOrEqual(x)
+    expect(r.y0).toBeLessThanOrEqual(y)
+    expect(r.y1).toBeGreaterThanOrEqual(y)
+    const nx = r.x1 - r.x0 + 1
+    expect(nx).toBeGreaterThanOrEqual(9)
+    expect(nx).toBeLessThanOrEqual(11)
+  })
+  it('clamps to valid rows', () => {
+    const r = patchTileRange(85, 0, 15, 4)
+    expect(r.y0).toBeGreaterThanOrEqual(0)
   })
 })

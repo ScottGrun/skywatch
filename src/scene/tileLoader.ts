@@ -9,7 +9,11 @@ export interface TileSlot {
   x: number
   y: number
   ver: number
+  /** Standard-resolution Mapbox tile (no @2x, 512px): used by the many-tile detail patch. */
+  lowRes?: boolean
 }
+
+export type TileLoader = ReturnType<typeof createTileLoader>
 
 /**
  * Loads tile textures into slots. Reloading a slot (theme change) keeps the old texture until the
@@ -27,19 +31,22 @@ export function createTileLoader(
   return {
     load(slot: TileSlot, theme: Theme): void {
       const ver = ++slot.ver
-      loader.load(tileUrl(slot.z, slot.x, slot.y, token, styleFor(theme), theme), (tex) => {
-        if (!alive || ver !== slot.ver) {
-          tex.dispose()
-          return
-        }
-        tex.colorSpace = THREE.SRGBColorSpace
-        tex.anisotropy = maxAniso
-        const old = slot.mat.map
-        slot.mat.map = tex
-        slot.mat.color.setRGB(...tintFor(theme))
-        if (!old) slot.mat.needsUpdate = true
-        old?.dispose()
-      })
+      loader.load(
+        tileUrl(slot.z, slot.x, slot.y, token, styleFor(theme), theme, !slot.lowRes),
+        (tex) => {
+          if (!alive || ver !== slot.ver) {
+            tex.dispose()
+            return
+          }
+          tex.colorSpace = THREE.SRGBColorSpace
+          tex.anisotropy = maxAniso
+          const old = slot.mat.map
+          slot.mat.map = tex
+          slot.mat.color.setRGB(...tintFor(theme))
+          if (!old) slot.mat.needsUpdate = true
+          old?.dispose()
+        },
+      )
     },
     dispose(): void {
       alive = false

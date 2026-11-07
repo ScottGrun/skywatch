@@ -39,11 +39,12 @@ export function tileUrl(
   token: string | undefined,
   style?: string,
   theme: Theme = 'dark',
+  retina = true,
 ): string {
   const light = theme === 'light'
   if (token) {
     const { user, id } = parseMapboxStyle(style, light ? 'light-v11' : 'dark-v11')
-    return `https://api.mapbox.com/styles/v1/${user}/${id}/tiles/512/${z}/${x}/${y}@2x?access_token=${token}`
+    return `https://api.mapbox.com/styles/v1/${user}/${id}/tiles/512/${z}/${x}/${y}${retina ? '@2x' : ''}?access_token=${token}`
   }
   // CARTO's free basemaps now return an "API KEY REQUIRED" placeholder; Esri Dark Gray is keyless.
   const canvas = light ? 'World_Light_Gray_Base' : 'World_Dark_Gray_Base'
@@ -54,4 +55,22 @@ export function attributionFor(token: string | undefined): string {
   return token
     ? '© Mapbox © OpenStreetMap'
     : 'Tiles © Esri — Esri, HERE, Garmin, © OpenStreetMap contributors'
+}
+
+/** Inclusive tile index range at zoom `z` covering a square of half-width `halfKm` around a point. */
+export function patchTileRange(
+  lat: number,
+  lon: number,
+  z: number,
+  halfKm: number,
+): { x0: number; x1: number; y0: number; y1: number } {
+  const dLat = halfKm / 111.2
+  const dLon = halfKm / (111.2 * Math.cos(lat * D2R))
+  const max = 2 ** z - 1
+  return {
+    x0: Math.floor(lonToTileX(lon - dLon, z)),
+    x1: Math.floor(lonToTileX(lon + dLon, z)),
+    y0: Math.max(0, Math.floor(latToTileY(lat + dLat, z))),
+    y1: Math.min(max, Math.floor(latToTileY(lat - dLat, z))),
+  }
 }

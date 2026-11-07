@@ -90,12 +90,23 @@ export interface TerrainMaterial {
   hole: THREE.Vector4
 }
 
-/** Tile material: radial ground fog + hillshade + terrain/flat blend. */
-export function createTerrainMaterial(flatY: number, bg: number): TerrainMaterial {
+/** Edge fade for the detail patch: world xz box (minX, minZ, maxX, maxZ) and fade width in km. */
+export interface EdgeFade {
+  box: readonly [number, number, number, number]
+  widthKm: number
+}
+
+/**
+ * Tile material: radial ground fog + hillshade + terrain/flat blend. With `fade`, alpha ramps up
+ * from the box edge inward and the material is drawn over the base tiles (polygon offset pulled
+ * toward the camera) so the patch blends into the coarser map instead of ending in a seam.
+ */
+export function createTerrainMaterial(flatY: number, bg: number, fade?: EdgeFade): TerrainMaterial {
   const mat = applyRadialFog(new THREE.MeshBasicMaterial({ color: bg, side: THREE.DoubleSide }))
   mat.polygonOffset = true
-  mat.polygonOffsetFactor = 1
-  mat.polygonOffsetUnits = 1
+  mat.polygonOffsetFactor = fade ? -2 : 1
+  mat.polygonOffsetUnits = fade ? -2 : 1
+  if (fade) mat.transparent = true
   const hole = new THREE.Vector4(0, 0, 0, 0)
   const fog = mat.onBeforeCompile
   mat.onBeforeCompile = (shader, renderer) => {
@@ -105,6 +116,10 @@ export function createTerrainMaterial(flatY: number, bg: number): TerrainMateria
     shader.uniforms.uVK = vscale.uniform
     shader.uniforms.uShadeK = hillshade
     shader.uniforms.uHole = { value: hole }
+    if (fade) {
+      shader.uniforms.uFadeBox = { value: new THREE.Vector4(...fade.box) }
+      shader.uniforms.uFadeW = { value: fade.widthKm }
+    }
     shader.vertexShader = shader.vertexShader
       .replace(
         '#include <common>',
@@ -125,7 +140,18 @@ vShade = mix(1.0, 1.0 + uShadeK * (clamp(ndl / ${LIGHT.y.toFixed(4)}, 0.15, 1.9)
         'void main() {\nif (uHole.z > uHole.x && vFogW.x > uHole.x && vFogW.x < uHole.z && vFogW.y > uHole.y && vFogW.y < uHole.w) discard;',
       )
       .replace('#include <map_fragment>', '#include <map_fragment>\ndiffuseColor.rgb *= vShade;')
+    if (fade) {
+      shader.fragmentShader = shader.fragmentShader
+        .replace(
+          '#include <common>',
+          '#include <common>\nuniform vec4 uFadeBox;\nuniform float uFadeW;',
+        )
+        .replace(
+          '#include <map_fragment>',
+          '#include <map_fragment>\n{ vec2 dd = min(vFogW - uFadeBox.xy, uFadeBox.zw - vFogW); diffuseColor.a *= smoothstep(0.0, uFadeW, min(dd.x, dd.y)); }',
+        )
+    }
   }
-  mat.customProgramCacheKey = () => 'radialFog+terrain'
+  mat.customProgramCacheKey = () => (fade ? 'radialFog+terrain+fade' : 'radialFog+terrain')
   return { mat, hole }
 }
