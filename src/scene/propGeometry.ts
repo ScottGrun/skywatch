@@ -36,6 +36,19 @@ function tailRotorGeo(r: number): THREE.BufferGeometry {
   return g
 }
 
+const rotorGeoCache = new Map<string, THREE.BufferGeometry>()
+
+/** Shared spinner geometry for a baked model's rotor (axis = spin axis, radius in model units). */
+export function rotorGeometry(axis: 'x' | 'y' | 'z', radius: number): THREE.BufferGeometry {
+  const key = axis + radius.toFixed(3)
+  let g = rotorGeoCache.get(key)
+  if (!g) {
+    g = axis === 'y' ? mainRotorGeo(radius) : axis === 'x' ? tailRotorGeo(radius) : propGeo(radius)
+    rotorGeoCache.set(key, g)
+  }
+  return g
+}
+
 const rotorCache = new Map<AircraftClass, RotorSpec[]>()
 
 export function rotorsFor(cls: AircraftClass): RotorSpec[] {

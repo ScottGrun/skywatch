@@ -34,3 +34,30 @@ test('models lineup', async ({ page }) => {
     clip: { ...clip, y: 250, height: 400 },
   })
 })
+
+// Every baked FR24 model, 19 per page (?models=all&page=N), top and oblique close-ups.
+test('models grid', async ({ page }) => {
+  mkdirSync('screenshots', { recursive: true })
+  for (let p = Number(process.env.P0 ?? 0); p < Number(process.env.P1 ?? 2); p++) {
+    await page.goto(`/?apt=CYVR&models=all&page=${p}`)
+    await page.waitForTimeout(2500)
+    await page.getByRole('button', { name: 'TOP' }).click()
+    await page.mouse.move(Number(process.env.ZX ?? 720), Number(process.env.ZY ?? 450))
+    for (let i = 0; i < Number(process.env.GZOOM ?? 10); i++) {
+      await page.mouse.wheel(0, -200)
+      await page.waitForTimeout(60)
+    }
+    await page.waitForTimeout(2500)
+    const clip = { x: 320, y: 60, width: 800, height: 780 }
+    await page.screenshot({
+      path: `screenshots/models-grid-${p}${process.env.TAG ?? ''}-top.png`,
+      clip,
+    })
+    await page.getByRole('button', { name: 'SIDE' }).click()
+    await page.waitForTimeout(2500)
+    await page.screenshot({
+      path: `screenshots/models-grid-${p}${process.env.TAG ?? ''}-side.png`,
+      clip,
+    })
+  }
+})

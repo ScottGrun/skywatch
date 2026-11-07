@@ -2,7 +2,10 @@ import * as THREE from 'three'
 import { rampHex, hexCss } from '../core/ramp'
 import type { Aircraft, AircraftClass } from '../types'
 import { aircraftGeometry, aircraftRotors } from './aircraftGeometry'
-import { advanceSpin, classScale } from './classScale'
+import { advanceSpin, classScale, modelScale } from './classScale'
+import { getModel, type ModelInfo } from './modelLoader'
+import { modelNameFor } from './modelMap'
+import type { RotorSpec } from './propGeometry'
 import {
   ALT_EXAG,
   D2R,
@@ -103,6 +106,10 @@ export class AircraftView {
     side: THREE.DoubleSide,
   })
   private cls: AircraftClass | null = null
+  private type = ''
+  private modelName: string | null = null
+  private modelBound = false
+  private size = 1
   private posA = new THREE.BufferAttribute(new Float32Array(TRAIL_POINTS * 3), 3)
   private colA = new THREE.BufferAttribute(new Float32Array(TRAIL_POINTS * 3), 3)
   private hPos = new Float32Array(HIST * 3)
@@ -143,11 +150,9 @@ export class AircraftView {
     this.root.visible = true
   }
 
-  private bindClass(cls: AircraftClass): void {
-    this.cls = cls
-    this.mesh.geometry = aircraftGeometry(cls)
+  private setRotors(specs: readonly RotorSpec[]): void {
     for (const r of this.rotors) this.body.remove(r.mesh)
-    this.rotors = aircraftRotors(cls).map((r) => {
+    this.rotors = specs.map((r) => {
       const mesh = new THREE.Mesh(r.geo, this.rotorMat)
       mesh.position.set(r.pos[0], r.pos[1], r.pos[2])
       this.body.add(mesh)
@@ -155,8 +160,38 @@ export class AircraftView {
     })
   }
 
+  private bindClass(cls: AircraftClass): void {
+    this.mesh.geometry = aircraftGeometry(cls)
+    this.size = classScale(cls)
+    this.setRotors(aircraftRotors(cls))
+  }
+
+  private bindModel(m: ModelInfo): void {
+    this.mesh.geometry = m.geo
+    this.size = modelScale(m.lengthM)
+    this.setRotors(m.rotors)
+  }
+
+  /** Pick procedural class geometry or the baked model (swapped in once it has loaded). */
+  private syncModel(ac: Aircraft): void {
+    if (this.cls !== ac.aircraftClass || this.type !== ac.typeCode) {
+      this.cls = ac.aircraftClass
+      this.type = ac.typeCode
+      this.modelName = modelNameFor(ac.typeCode, ac.aircraftClass)
+      this.modelBound = false
+      this.bindClass(ac.aircraftClass)
+    }
+    if (this.modelName && !this.modelBound) {
+      const m = getModel(this.modelName)
+      if (m) {
+        this.modelBound = true
+        this.bindModel(m)
+      }
+    }
+  }
+
   update(ac: Aircraft, c: FrameCtx, selected: boolean, hovered = false): void {
-    if (this.cls !== ac.aircraftClass) this.bindClass(ac.aircraftClass)
+    this.syncModel(ac)
     const muted = ac.onGround && !selected && !hovered
     this.showLabel = !muted
     const altKm = Math.max(0, ac.altFt - c.elevFt) * FT_TO_KM * ALT_EXAG
@@ -179,7 +214,7 @@ export class AircraftView {
 
     this.camDist = Math.hypot(c.cam.x - x, c.cam.y - y, c.cam.z - z)
     const sc = clamp(this.camDist / SCALE_DIV, SCALE_MIN, SCALE_MAX)
-    const size = classScale(ac.aircraftClass)
+    const size = this.size
     this.scale = sc * size
 
     // Orientation: yaw from track, pitch from climb angle, roll from smoothed turn rate.

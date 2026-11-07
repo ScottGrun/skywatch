@@ -240,7 +240,7 @@ export function createFlightScene(container: HTMLElement): FlightScene {
   return {
     setAirport,
     setTraffic(src: TrafficSource) {
-      traffic = location.search.includes('models=1') ? createLineup() : src
+      traffic = location.search.includes('models=') ? createLineup() : src
     },
     select,
     setFollow,
