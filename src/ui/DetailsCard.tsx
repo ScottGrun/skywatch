@@ -1,3 +1,6 @@
+import { useEffect, useState } from 'react'
+import { ownerIfDifferent, type AircraftDetails } from '../core/details.ts'
+import { getAircraftDetails } from '../data/details.ts'
 import type { Aircraft } from '../types.ts'
 import { altColor, callsignOf, dash, fmtInt, fmtVsLong, pad3, progress } from './format.ts'
 
@@ -21,7 +24,20 @@ export function DetailsCard({
   onClose,
   onFollow,
 }: Props) {
+  const id = a?.id
+  const typeCode = a?.typeCode ?? ''
+  const [det, setDet] = useState<{ id: string; d: AircraftDetails } | null>(null)
+  useEffect(() => {
+    if (!id) return
+    let live = true
+    void getAircraftDetails(id, typeCode).then((d) => live && setDet({ id, d }))
+    return () => {
+      live = false
+    }
+  }, [id, typeCode])
   if (!a) return null
+  const d = det?.id === a.id ? det.d : null
+  const owner = d ? ownerIfDifferent(a.airline, d.owner) : ''
   const color = altColor(a)
   const eta = a.etaMin == null ? null : Math.max(0, Math.round(a.etaMin))
   const stats: [string, string, string?][] = [
@@ -45,6 +61,22 @@ export function DetailsCard({
           ✕
         </button>
       </div>
+      {d?.photo && (
+        <figure className="d-photo">
+          <img src={d.photo.src} alt={callsignOf(a)} loading="lazy" />
+          <figcaption>
+            <a href={d.photo.link} target="_blank" rel="noopener noreferrer">
+              {d.photo.credit}
+            </a>
+          </figcaption>
+        </figure>
+      )}
+      {(d?.fullType || owner) && (
+        <div className="d-type">
+          {d?.fullType && <b>{d.fullType}</b>}
+          {owner && <span>Operated by {owner}</span>}
+        </div>
+      )}
       <span className="chip" style={{ background: color }}>
         {a.phase.toUpperCase()}
       </span>

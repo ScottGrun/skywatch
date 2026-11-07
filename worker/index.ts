@@ -1,6 +1,7 @@
 import { createAdsbdb, transientResults } from './adsbdb.ts'
 import { createAdsbLolClient } from './adsblol.ts'
 import { createAirspaceClient } from './airspace.ts'
+import { createPhotoClient } from './photo.ts'
 import { createMetarClient } from './metar.ts'
 import { createTraceClient } from './trace.ts'
 import { createOpenSkyClient, type FetchFn } from './opensky.ts'
@@ -16,6 +17,7 @@ interface Env {
 const doFetch: FetchFn = (input, init) => fetch(input, init)
 const adsbLol = createAdsbLolClient({ fetch: doFetch })
 const metars = createMetarClient({ fetch: doFetch })
+const photos = createPhotoClient({ fetch: doFetch })
 const traces = createTraceClient({ fetch: doFetch })
 const wantsOpenSky = (env: Env) => env.TRAFFIC_SOURCE?.toLowerCase() === 'opensky'
 const adsbdb = createAdsbdb({ fetch: doFetch })
@@ -76,6 +78,13 @@ export default {
       // Upstream failure: 503 so the client retries instead of caching "unknown" for the session.
       if (transientResults.has(info)) return json(info, 503, { 'cache-control': 'no-store' })
       return json(info, 200, { 'cache-control': 'public, max-age=86400' })
+    }
+
+    const ph = /^\/api\/photo\/([0-9a-fA-F]{6})$/.exec(path)
+    if (ph) {
+      return json(await photos.get(ph[1].toLowerCase()), 200, {
+        'cache-control': 'public, max-age=86400',
+      })
     }
 
     const tr = /^\/api\/track\/([0-9a-fA-F]{6})$/.exec(path)

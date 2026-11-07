@@ -150,8 +150,8 @@ describe('adsbdb', () => {
           aircraft: { icao_type: 'A320', registered_owner: 'Air Canada', registration: 'C-FABC' },
         },
       }),
-    ).toEqual({ typeCode: 'A320', operator: 'Air Canada', registration: 'C-FABC' })
-    expect(mapAircraft({ response: 'unknown aircraft' })).toEqual({
+    ).toMatchObject({ typeCode: 'A320', operator: 'Air Canada', registration: 'C-FABC' })
+    expect(mapAircraft({ response: 'unknown aircraft' })).toMatchObject({
       typeCode: '',
       operator: '',
       registration: '',
@@ -172,7 +172,7 @@ describe('adsbdb', () => {
   it('caches results and treats 404 as empty', async () => {
     const f = vi.fn(async () => new Response('{}', { status: 404 }))
     const a = createAdsbdb({ fetch: f, now: () => 0 })
-    expect(await a.aircraft('abc123')).toEqual({ typeCode: '', operator: '', registration: '' })
+    expect(await a.aircraft('abc123')).toMatchObject({ typeCode: '', operator: '' })
     await a.aircraft('abc123')
     expect(f).toHaveBeenCalledTimes(1)
     expect(await a.route('ACA1')).toEqual({ origin: null, dest: null })

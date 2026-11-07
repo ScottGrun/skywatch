@@ -7,6 +7,11 @@ export interface AircraftInfo {
   typeCode: string
   operator: string
   registration: string
+  /** adsbdb manufacturer + type, e.g. "Airbus A320-214"; "" unknown. */
+  fullType: string
+  /** airport-data.com photo URLs (full / thumbnail); "" when none. */
+  photo: string
+  photoThumb: string
 }
 export interface RouteEnd {
   iata: string
@@ -21,12 +26,26 @@ type Obj = Record<string, unknown>
 const str = (v: unknown): string => (typeof v === 'string' ? v : '')
 const obj = (v: unknown): Obj | undefined => (v && typeof v === 'object' ? (v as Obj) : undefined)
 
+/** Joins manufacturer and model without repeating the manufacturer ("Airbus" + "A320-214"). */
+export function fullTypeName(manufacturer: string, type: string): string {
+  const m = manufacturer.trim()
+  const t = type.trim()
+  if (!m) return t
+  if (!t) return m
+  return t.toLowerCase().startsWith(m.toLowerCase()) ? t : `${m} ${t}`
+}
+
+const httpsUrl = (u: string): string => (/^https?:\/\//.test(u) ? u.replace(/^http:/, 'https:') : '')
+
 export function mapAircraft(j: unknown): AircraftInfo {
   const a = obj(obj(obj(j)?.response)?.aircraft)
   return {
     typeCode: str(a?.icao_type),
     operator: str(a?.registered_owner),
     registration: str(a?.registration),
+    fullType: fullTypeName(str(a?.manufacturer), str(a?.type)),
+    photo: httpsUrl(str(a?.url_photo)),
+    photoThumb: httpsUrl(str(a?.url_photo_thumbnail)),
   }
 }
 
