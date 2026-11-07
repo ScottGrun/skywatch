@@ -44,7 +44,7 @@ export function mergeDetails(
   return {
     fullType: a?.fullType ?? '',
     owner: a?.operator ?? '',
-    photo: photoFromAircraft(a) ?? photoFromPlanespotters(ps),
+    photo: photoFromPlanespotters(ps) ?? photoFromAircraft(a),
   }
 }
 

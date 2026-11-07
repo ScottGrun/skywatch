@@ -14,13 +14,14 @@ const ps = {
 }
 
 describe('details merge', () => {
-  it('prefers the adsbdb photo', () => {
+  it('prefers the planespotters photo', () => {
     const d = mergeDetails(adsbdb, ps)
-    expect(d.photo?.src).toBe(adsbdb.photoThumb)
+    expect(d.photo?.src).toBe(ps.thumb)
     expect(d.fullType).toBe('Airbus A320-214')
     expect(d.owner).toBe('Jazz Aviation LP')
   })
-  it('falls back to planespotters with credit', () => {
+  it('falls back to adsbdb; planespotters gets credit', () => {
+    expect(mergeDetails(adsbdb, null).photo?.src).toBe(adsbdb.photoThumb)
     const d = mergeDetails({ fullType: 'X' }, ps)
     expect(d.photo).toEqual({
       src: ps.thumb,

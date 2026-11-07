@@ -20,8 +20,10 @@ async function json<T>(url: string): Promise<T | null> {
 }
 
 async function load(id: string, typeCode: string): Promise<AircraftDetails> {
-  const a = await json<AdsbdbPayload>(`/api/aircraft/${id}`)
-  const ps = a?.photo || a?.photoThumb ? null : await json<PlanespottersPayload>(`/api/photo/${id}`)
+  const [a, ps] = await Promise.all([
+    json<AdsbdbPayload>(`/api/aircraft/${id}`),
+    json<PlanespottersPayload>(`/api/photo/${id}`),
+  ])
   const d = mergeDetails(a, ps)
   if (!d.fullType && typeCode) {
     const info = await db.type(typeCode)

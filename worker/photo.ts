@@ -1,7 +1,7 @@
 import { TtlCache } from './ttlCache.ts'
 import type { FetchFn } from './opensky.ts'
 
-const UA = 'tracon3d-flight-tracker/1.0 (open-source hobby project; https://github.com/)'
+const UA = 'tracon3d-flight-tracker/1.0 (+https://flight-tracker.scottgrunerud98.workers.dev)'
 const TTL_MS = 24 * 3600_000
 
 export interface PhotoInfo {
