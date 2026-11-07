@@ -132,6 +132,8 @@ export interface FlightScene {
   setFilter(pred: ((a: Aircraft) => boolean) | null): void
   /** Show/hide controlled-airspace volumes around the airport (fetched lazily, off by default). */
   setAirspace(on: boolean): void
+  /** Real 3D terrain (default) vs the flat map. Instant; persisted by the scene in localStorage. */
+  setTerrain(on: boolean): void
   view(preset: ViewPreset): void
   /** Ease back over the airport (cancels follow) and start the idle orbit. */
   home(): void

@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import { KM_PER_NM } from '../core/geo'
 import {
   COMPASS_RADIUS_KM,
+  DECOR_LIFT,
   D2R,
   GRID_COLOR,
   GRID_OPACITY,
@@ -11,6 +12,7 @@ import {
   RING_NM,
 } from './constants'
 import { applyRadialFog } from './radialFog'
+import { groundY } from './terrain'
 
 /** A fixed text marker positioned in world space (e/n km, ground level). */
 export interface StaticLabelDef {
@@ -22,11 +24,39 @@ export interface StaticLabelDef {
 
 const FONT = "'IBM Plex Mono',monospace"
 
+const RING_STEPS = 360
+const GRID_HALF = 400
+const GRID_SPACING = 10
+const GRID_STEP = 2.5
+
+/** Square grid whose lines follow the terrain surface. */
+function terrainGrid(): THREE.LineSegments {
+  const pts: number[] = []
+  const line = (fixed: number, alongE: boolean): void => {
+    for (let s = -GRID_HALF; s < GRID_HALF; s += GRID_STEP) {
+      for (const t of [s, s + GRID_STEP]) {
+        const e = alongE ? t : fixed
+        const n = alongE ? fixed : t
+        pts.push(e, groundY(e, n) + DECOR_LIFT, -n)
+      }
+    }
+  }
+  for (let k = -GRID_HALF; k <= GRID_HALF; k += GRID_SPACING) {
+    line(k, true)
+    line(k, false)
+  }
+  const g = new THREE.BufferGeometry()
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3))
+  return new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: GRID_COLOR }))
+}
+
 function circle(r: number): THREE.Line {
   const pts: THREE.Vector3[] = []
-  for (let i = 0; i <= 128; i++) {
-    const a = (i / 128) * Math.PI * 2
-    pts.push(new THREE.Vector3(Math.sin(a) * r, 0.05, Math.cos(a) * r))
+  for (let i = 0; i <= RING_STEPS; i++) {
+    const a = (i / RING_STEPS) * Math.PI * 2
+    const e = Math.sin(a) * r
+    const n = Math.cos(a) * r
+    pts.push(new THREE.Vector3(e, groundY(e, n) + DECOR_LIFT, -n))
   }
   return new THREE.Line(
     new THREE.BufferGeometry().setFromPoints(pts),
@@ -38,11 +68,10 @@ function circle(r: number): THREE.Line {
 
 /** Grid + range rings added to `group`; returns label definitions for the overlay. */
 export function buildRings(group: THREE.Group): StaticLabelDef[] {
-  const grid = new THREE.GridHelper(800, 80, GRID_COLOR, GRID_COLOR)
+  const grid = terrainGrid()
   const gm = applyRadialFog(grid.material as THREE.Material)
   gm.transparent = true
   gm.opacity = GRID_OPACITY
-  grid.position.y = 0.02
   group.add(grid)
 
   const labels: StaticLabelDef[] = []

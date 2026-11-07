@@ -6,11 +6,15 @@ import {
   APPROACH_LEN_KM,
   APPROACH_OPACITY,
   D2R,
+  DECOR_LIFT,
   FT_TO_KM,
   RUNWAY_COLOR,
   RUNWAY_MIN_WIDTH_KM,
 } from './constants'
 import { applyRadialFog } from './radialFog'
+import { groundY } from './terrain'
+
+const APPROACH_STEP_KM = 0.5
 
 /** A landing threshold: position (km east/north of airport) and landing heading. */
 export interface Threshold {
@@ -98,10 +102,14 @@ export function buildRunways(group: THREE.Group, ap: Airport): RunwaysHandle {
   for (const t of thresholds) {
     const de = Math.sin(t.headingDeg * D2R)
     const dn = Math.cos(t.headingDeg * D2R)
-    const geo = new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(t.e, 0.06, -t.n),
-      new THREE.Vector3(t.e - de * APPROACH_LEN_KM, 0.06, -(t.n - dn * APPROACH_LEN_KM)),
-    ])
+    // Draped on the terrain so the final stays visible over hills.
+    const pts: THREE.Vector3[] = []
+    for (let d = 0; d <= APPROACH_LEN_KM + 1e-6; d += APPROACH_STEP_KM) {
+      const e = t.e - de * d
+      const n = t.n - dn * d
+      pts.push(new THREE.Vector3(e, Math.max(0.06, groundY(e, n) + DECOR_LIFT), -n))
+    }
+    const geo = new THREE.BufferGeometry().setFromPoints(pts)
     const line = new THREE.Line(
       geo,
       applyRadialFog(

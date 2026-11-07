@@ -26,10 +26,21 @@ import { createLineup } from './lineup'
 import { pickNearest } from './picking'
 import { radialFog } from './radialFog'
 import { projectToScreen, type ScreenPoint } from './projection'
-import { buildRings } from './rings'
+import { buildRings, type StaticLabelDef } from './rings'
 import { buildRunways, type RunwaysHandle } from './runways'
 import { createSelection } from './selection'
+import { clearTerrain, groundY, setTerrainEnabled } from './terrain'
+import { terrainBlend } from './terrainMesh'
 import { buildTiles, disposeObject } from './tiles'
+
+const TERRAIN_KEY = 'tracon3d.terrain'
+function storedTerrain(): boolean {
+  try {
+    return localStorage.getItem(TERRAIN_KEY) !== '0'
+  } catch {
+    return true
+  }
+}
 
 const NO_THRESHOLDS: RunwaysHandle['thresholds'] = []
 const EMPTY: Aircraft[] = []
@@ -87,6 +98,10 @@ export function createFlightScene(container: HTMLElement): FlightScene {
   let world: THREE.Group | null = null
   let statics: StaticLabel[] = []
   let runways: RunwaysHandle | null = null
+  let decor: THREE.Group | null = null
+  let terrainOn = storedTerrain()
+  setTerrainEnabled(terrainOn)
+  terrainBlend.value = terrainOn ? 1 : 0
   const selFns = new Set<(id: string | null) => void>()
   const folFns = new Set<(on: boolean) => void>()
 
@@ -117,6 +132,21 @@ export function createFlightScene(container: HTMLElement): FlightScene {
     statics.forEach((s) => s.el.remove())
     statics = []
     runways = null
+    decor = null
+  }
+
+  /** Grid, rings and runways; rebuilt when terrain arrives or is toggled so they follow the ground. */
+  function buildDecor(): StaticLabelDef[] {
+    if (!world || !airport) return []
+    if (decor) {
+      world.remove(decor)
+      disposeObject(decor)
+    }
+    decor = new THREE.Group()
+    world.add(decor)
+    const defs = buildRings(decor)
+    runways = buildRunways(decor, airport)
+    return defs
   }
 
   function setAirport(ap: Airport): void {
@@ -124,11 +154,11 @@ export function createFlightScene(container: HTMLElement): FlightScene {
     pool.clear()
     history.set(null, ZERO, 0)
     clearWorld()
+    clearTerrain()
     world = new THREE.Group()
-    buildTiles(world, ap, maxAniso)
-    const labelDefs = buildRings(world)
-    runways = buildRunways(world, ap)
+    buildTiles(world, ap, maxAniso, buildDecor)
     scene.add(world)
+    const labelDefs = buildDecor()
     statics = createStaticLabels(overlay, labelDefs)
     airspace.setAirport(ap)
     select(null)
@@ -170,6 +200,13 @@ export function createFlightScene(container: HTMLElement): FlightScene {
     radialFog.center.value.set(orb.x, orb.z)
     radialFog.near.value = GFOG_NEAR_A + GFOG_NEAR_B * orb.r
     radialFog.far.value = GFOG_FAR_A + GFOG_FAR_B * orb.r
+
+    const cp = rig.camera.position
+    const cg = groundY(cp.x, -cp.z) + 0.5
+    if (cp.y < cg) {
+      cp.y = cg
+      rig.camera.updateMatrixWorld()
+    }
 
     ctx.nowMs = nowMs
     ctx.dt = dt
@@ -215,7 +252,8 @@ export function createFlightScene(container: HTMLElement): FlightScene {
       v.label.place(hide ? null : sp)
     }
     airspace.place(rig.camera, w, h, sp)
-    for (const s of statics) placeStatic(s, projectToScreen(rig.camera, w, h, s.e, 0, -s.n, sp))
+    for (const s of statics)
+      placeStatic(s, projectToScreen(rig.camera, w, h, s.e, groundY(s.e, s.n), -s.n, sp))
 
     renderer.render(scene, rig.camera)
   }
@@ -260,6 +298,18 @@ export function createFlightScene(container: HTMLElement): FlightScene {
     home() {
       setFollow(false)
       rig.home()
+    },
+    setTerrain(on) {
+      if (on === terrainOn) return
+      terrainOn = on
+      try {
+        localStorage.setItem(TERRAIN_KEY, on ? '1' : '0')
+      } catch {
+        /* ignore */
+      }
+      setTerrainEnabled(on)
+      terrainBlend.value = on ? 1 : 0
+      buildDecor()
     },
     view(preset: ViewPreset) {
       setFollow(false)

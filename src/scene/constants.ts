@@ -29,6 +29,8 @@ export const TILE_TINT_CUSTOM: readonly [number, number, number] = [1, 1, 1]
 export const TILE_TINT: readonly [number, number, number] = [1.25, 1.4, 1.6]
 
 // Ground decor
+/** Lift of ground decor (grid, rings, markers) above the terrain surface, km. */
+export const DECOR_LIFT = 0.06
 export const GRID_COLOR = 0x10181f
 export const GRID_OPACITY = 0.6
 export const RING_COLOR = 0x24323f

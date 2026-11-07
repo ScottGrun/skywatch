@@ -76,6 +76,14 @@ export function App() {
       return false
     }
   })
+  // The scene persists this itself (same key); App only mirrors it for the button.
+  const [terrainOn, setTerrainOn] = useState(() => {
+    try {
+      return localStorage.getItem('tracon3d.terrain') !== '0'
+    } catch {
+      return true
+    }
+  })
   const [airspace, setAirspaceStatus] = useState<AirspaceStatus>(AIRSPACE_OFF)
   const pred = useMemo(() => buildPredicate(filter), [filter])
 
@@ -184,6 +192,7 @@ export function App() {
       /* ignore */
     }
   }, [airspaceOn])
+  useEffect(() => sceneRef.current?.setTerrain(terrainOn), [terrainOn])
   // Real track history for the selected aircraft (refetched every 60 s while selected).
   useEffect(() => {
     if (!selectedId) return
@@ -254,6 +263,8 @@ export function App() {
         airspaceOn={airspaceOn}
         airspace={airspace}
         onAirspace={setAirspaceOn}
+        terrainOn={terrainOn}
+        onTerrain={setTerrainOn}
       />
       <Attribution text={attribution} />
     </div>

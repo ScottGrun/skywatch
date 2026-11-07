@@ -11,6 +11,7 @@ import {
   SELECT_COLOR,
 } from './constants'
 import type { Threshold } from './runways'
+import { groundY } from './terrain'
 
 export interface SelectionHandle {
   update(
@@ -72,7 +73,7 @@ export function createSelection(scene: THREE.Scene): SelectionHandle {
       const t = ac.category === 'ARR' && !ac.onGround ? pickThreshold(ac, thresholds) : null
       if (t) {
         ex = t.e
-        ey = 0.06
+        ey = groundY(t.e, t.n) + 0.06
         ez = -t.n
       } else {
         ex = ac.e + Math.sin(ac.trackDeg * D2R) * ROUTE_EXTEND_KM

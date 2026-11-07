@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import type { ViewPreset } from '../types'
+import { groundY } from './terrain'
 import {
   AUTO_ORBIT_RAD_S,
   EASE,
@@ -107,6 +108,8 @@ export class CameraRig {
       g.tx = target.x
       g.ty = target.y
       g.tz = target.z
+    } else {
+      g.ty = groundY(g.tx, -g.tz)
     }
     if (this.autoOrbit && !this.following) g.theta += dt * AUTO_ORBIT_RAD_S
     const k = 1 - Math.exp(-dt * EASE)

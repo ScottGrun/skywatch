@@ -31,6 +31,7 @@ import {
   SEL_RING_SCALE,
 } from './constants'
 import { AircraftLabel } from './labels'
+import { groundY } from './terrain'
 
 export interface FrameCtx {
   nowMs: number
@@ -196,7 +197,9 @@ export class AircraftView {
     this.showLabel = !muted
     const altKm = Math.max(0, ac.altFt - c.elevFt) * FT_TO_KM * ALT_EXAG
     const x = ac.e
-    const y = altKm
+    const g = groundY(ac.e, ac.n)
+    // On-ground traffic sits on the terrain; airborne never dips below it (DEM vs baro mismatch).
+    const y = ac.onGround ? g : Math.max(altKm, g + 0.02)
     const z = -ac.n
     this.x = x
     this.y = y
@@ -239,11 +242,11 @@ export class AircraftView {
     }
     this.body.rotation.set(clamp(climb, -PITCH_MAX, PITCH_MAX), -ac.trackDeg * D2R, this.bank)
 
-    this.drop.position.set(x, 0, z)
-    this.drop.scale.y = Math.max(y, 1e-4)
-    this.drop.visible = y > 0.05 && !ac.onGround
+    this.drop.position.set(x, g, z)
+    this.drop.scale.y = Math.max(y - g, 1e-4)
+    this.drop.visible = y - g > 0.05 && !ac.onGround
     this.dot.visible = !ac.onGround || selected
-    this.dot.position.set(x, 0.08, z)
+    this.dot.position.set(x, g + 0.08, z)
     if (selected) {
       const p = 0.5 + 0.5 * Math.sin((c.nowMs / SEL_RING_PERIOD_MS) * Math.PI * 2)
       this.dot.scale.setScalar(sc * size * 0.8 * (SEL_RING_SCALE + SEL_RING_AMP * (p * 2 - 1)))

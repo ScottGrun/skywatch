@@ -11,9 +11,11 @@ interface Props {
   airspaceOn: boolean
   airspace: AirspaceStatus
   onAirspace: (on: boolean) => void
+  terrainOn: boolean
+  onTerrain: (on: boolean) => void
 }
 
-export function Legend({ onView, airspaceOn, airspace, onAirspace }: Props) {
+export function Legend({ onView, airspaceOn, airspace, onAirspace, terrainOn, onTerrain }: Props) {
   const note = airspaceOn ? (airspace.state === 'loading' ? 'LOADING…' : airspace.note) : ''
   return (
     <section className="panel legend">
@@ -35,6 +37,13 @@ export function Legend({ onView, airspaceOn, airspace, onAirspace }: Props) {
         ))}
       </div>
       <div className="airspace-row">
+        <button
+          className={terrainOn ? 'on' : ''}
+          aria-pressed={terrainOn}
+          onClick={() => onTerrain(!terrainOn)}
+        >
+          TERRAIN
+        </button>
         <button
           className={airspaceOn ? 'on' : ''}
           aria-pressed={airspaceOn}
