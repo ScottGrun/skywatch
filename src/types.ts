@@ -104,15 +104,15 @@ export interface Airspace {
 }
 
 export interface AirspaceData {
-  source: 'openaip' | 'faa' | 'none'
+  source: 'faa' | 'none'
   attribution: string
-  reason?: 'needs_key' | 'upstream_error'
+  reason?: 'outside_us' | 'upstream_error'
   airspaces: Airspace[]
 }
 
 export interface AirspaceStatus {
   state: 'off' | 'loading' | 'ok' | 'unavailable'
-  /** Credit to show while volumes are visible, e.g. "Airspace: openAIP". */
+  /** Credit to show while volumes are visible, e.g. "Airspace: FAA". */
   attribution: string
   /** Short user-facing note when unavailable or empty. */
   note: string

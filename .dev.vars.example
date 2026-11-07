@@ -2,5 +2,3 @@
 TRAFFIC_SOURCE=adsblol
 OPENSKY_CLIENT_ID=
 OPENSKY_CLIENT_SECRET=
-# openAIP key enables worldwide airspace volumes (free account, CC BY-NC 4.0). Without it: FAA data, US airports only.
-OPENAIP_API_KEY=

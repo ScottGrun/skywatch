@@ -41,11 +41,11 @@ export function createAirspaceControl(scene: THREE.Object3D, overlay: HTMLElemen
       .then((d) => {
         if (ctl.signal.aborted) return
         if (!d || d.reason) {
-          const needsKey = d?.reason === 'needs_key'
+          const outsideUs = d?.reason === 'outside_us'
           return emit({
             state: 'unavailable',
             attribution: '',
-            note: needsKey ? 'Airspace data needs an openAIP key' : 'Airspace data unavailable',
+            note: outsideUs ? 'Airspace: US airports only' : 'Airspace data unavailable',
           })
         }
         handle = buildAirspace(d.airspaces, ap, overlay)
