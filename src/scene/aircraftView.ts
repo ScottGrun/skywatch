@@ -26,10 +26,6 @@ import {
   SCALE_DIV,
   SCALE_MAX,
   SCALE_MIN,
-  SEL_RING_AMP,
-  SEL_RING_OPACITY,
-  SEL_RING_PERIOD_MS,
-  SEL_RING_SCALE,
   SEL_SCALE,
   SEL_SCALE_TAU_S,
 } from './constants'
@@ -99,6 +95,7 @@ export class AircraftView {
     roughness: 0.45,
     metalness: 0.1,
     flatShading: true,
+    fog: false, // aircraft stay at full colour at any distance (no fade to the background)
   })
   private body = new THREE.Group()
   private mesh: THREE.Mesh
@@ -108,6 +105,7 @@ export class AircraftView {
     opacity: 0.62,
     side: THREE.DoubleSide,
     depthWrite: false,
+    fog: false,
   })
   private drop: THREE.Line
   private dot: THREE.Mesh
@@ -290,14 +288,8 @@ export class AircraftView {
     this.drop.visible = y - g > 0.05 && !ac.onGround
     this.dot.visible = !ac.onGround || selected
     this.dot.position.set(x, g + 0.08, z)
-    if (selected) {
-      const p = 0.5 + 0.5 * Math.sin((c.nowMs / SEL_RING_PERIOD_MS) * Math.PI * 2)
-      this.dot.scale.setScalar(ringLen * 0.8 * (SEL_RING_SCALE + SEL_RING_AMP * (p * 2 - 1)))
-      this.dotMat.opacity = SEL_RING_OPACITY[0] + (SEL_RING_OPACITY[1] - SEL_RING_OPACITY[0]) * p
-    } else {
-      this.dot.scale.setScalar(ringLen * 0.8)
-      this.dotMat.opacity = DOT_OPACITY
-    }
+    this.dot.scale.setScalar(ringLen * 0.8)
+    this.dotMat.opacity = DOT_OPACITY
 
     this.trail.line.visible = !ac.onGround
     // Trail Y is stored at x1 and scaled by the object, so old vertices follow the vertical scale.
