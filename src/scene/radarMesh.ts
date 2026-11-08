@@ -65,11 +65,12 @@ export function createRadarMesh(airportElevKm: number): RadarMesh {
     transparent: true,
     premultipliedAlpha: true,
     depthWrite: false,
+    depthTest: false,
   })
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), mat)
   mesh.position.set(0, sy / 2 - airportElevKm, 0)
   mesh.frustumCulled = false
-  mesh.renderOrder = 10
+  mesh.renderOrder = 10_000 // last: composites over rings, pavement, lights and aircraft
   mesh.visible = false
 
   return {
