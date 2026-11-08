@@ -6,6 +6,8 @@ import { FPM_PER_MS, FT_PER_M, KM_PER_NM, KT_PER_MS, toLocal } from '../core/geo
 import type { Aircraft, Airport, FeedStatus, TrafficSource } from '../types.ts'
 import { createAircraftDb } from './aircraftDb.ts'
 import { createEnricher } from './enrich.ts'
+import { plausibleRoute } from '../core/routeCheck.ts'
+import type { LatLon } from '../core/geo.ts'
 
 const LAT_PAD = 1.5
 const LON_PAD = 2
@@ -49,6 +51,8 @@ export interface TrafficOptions {
   /** Injectable for tests; defaults to global fetch and a shared enrichment cache. */
   fetch?: typeof fetch
   now?: () => number
+  /** Airport coordinates by IATA/ICAO code; routes that don't fit the aircraft's position are dropped. */
+  locate?: (code: string) => LatLon | undefined
 }
 
 export type TrafficHandle = TrafficSource & { dispose(): void }
@@ -209,8 +213,12 @@ export function createTraffic(airport: Airport, opts: TrafficOptions = {}): Traf
         const distNm = Math.hypot(east, north) / KM_PER_NM
         const meta = enricher.aircraft(id)
         const route = enricher.route(e.callsign)
-        const origin = route?.origin ?? ''
-        const dest = route?.dest ?? ''
+        const ok =
+          !route ||
+          !opts.locate ||
+          plausibleRoute(p, opts.locate(route.origin), opts.locate(route.dest))
+        const origin = ok ? (route?.origin ?? '') : ''
+        const dest = ok ? (route?.dest ?? '') : ''
         const input = {
           e: east,
           n: north,

@@ -151,7 +151,12 @@ export function App() {
   useEffect(() => {
     if (!airport) return
     const scene = sceneRef.current
-    const traffic = createTraffic(airport)
+    const byCode = new Map<string, Airport>()
+    for (const ap of airportsRef.current) {
+      byCode.set(ap.icao, ap)
+      if (ap.iata) byCode.set(ap.iata, ap)
+    }
+    const traffic = createTraffic(airport, { locate: (c) => byCode.get(c) })
     trafficRef.current = traffic
     setStatus(traffic.status())
     setSource(null)
