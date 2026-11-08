@@ -330,3 +330,43 @@
   vertical-align: middle;
   object-fit: contain;
 }
+
+/* weather popover (reuses .filter / .filter-field / .filter-dd) */
+.wx-sum {
+  min-width: 36px;
+}
+.wx-dd {
+  width: 250px;
+}
+.wx-body {
+  display: grid;
+  gap: 8px;
+  padding: 6px 10px 8px;
+}
+.wx-op {
+  padding: 0;
+}
+.wx-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.wx-row b {
+  font: 500 11px var(--mono);
+  color: var(--strong);
+}
+.wx-ramp {
+  height: 8px;
+  border-radius: 2px;
+  border: 1px solid var(--border);
+}
+.wx-ticks,
+.wx-ends {
+  display: flex;
+  justify-content: space-between;
+  font: 500 9px var(--mono);
+  color: var(--body);
+}
+.wx-ticks {
+  margin-top: -4px;
+}

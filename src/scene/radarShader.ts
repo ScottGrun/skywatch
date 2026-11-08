@@ -24,6 +24,7 @@ uniform float uMinStep;
 uniform float uMaxStep;
 uniform float uGrow;
 uniform float uSigma;      // extinction per km at full density
+uniform float uOpacity;    // user opacity 0-1
 uniform vec2 uFogCenter;
 uniform float uFogNear;
 uniform float uFogFar;
@@ -69,12 +70,17 @@ void main() {
         vec3 glow = c.rgb * (1.0 + 0.5 * a);
         col += (1.0 - acc) * s * glow;
         acc += (1.0 - acc) * s;
-        if (acc > 0.97) break;
+        if (acc > 0.95) break;
       }
     }
     t += dt;
   }
   if (acc < 0.004) discard;
-  outColor = vec4(col, acc);
+  // Brightness must not depend on path length: long grazing rays through the wide box would saturate to
+  // opaque while top-down stays faint. Compress accumulated opacity into a capped range (soft knee), then
+  // rescale the premultiplied color to it.
+  float cap = 0.8 * (1.0 - exp(-2.2 * acc)) / (1.0 - exp(-2.2));
+  float outA = cap * uOpacity;
+  outColor = vec4(col / acc * outA, outA);
 }
 `

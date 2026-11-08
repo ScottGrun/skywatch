@@ -20,6 +20,7 @@ export function createRadarControl(parent: THREE.Object3D) {
   let abort: AbortController | null = null
   let timer = 0
   let key = ''
+  let opacity = 0.7
   let status: RadarStatus = { state: 'off', available: false, site: '', timeMs: 0 }
   const fns = new Set<(s: RadarStatus) => void>()
 
@@ -55,12 +56,14 @@ export function createRadarControl(parent: THREE.Object3D) {
       if (k === key && mesh) return emit({ state: 'ok' })
       if (!mesh) emit({ state: 'loading' })
       const bytes = await fetchVolumeBytes(k, ctl.signal)
+      emit({ state: 'decoding' })
       const res = await decodeRadar(bytes, ap)
       if (ctl.signal.aborted) return
       if (!mesh) {
         const { createRadarMesh } = await import('./radarMesh')
         if (ctl.signal.aborted) return
         mesh = createRadarMesh(ap.elevationFt * FT_TO_KM)
+        mesh.setOpacity(opacity)
         parent.add(mesh.mesh)
       }
       mesh.setGrid(res.grid)
@@ -85,6 +88,10 @@ export function createRadarControl(parent: THREE.Object3D) {
         return emit({ state: 'off' })
       }
       void load()
+    },
+    setOpacity(a: number) {
+      opacity = Math.min(1, Math.max(0, a))
+      mesh?.setOpacity(opacity)
     },
     setAirport(ap: Airport) {
       airport = ap

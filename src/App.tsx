@@ -94,6 +94,14 @@ export function App() {
       return false
     }
   })
+  const [radarOpacity, setRadarOpacity] = useState(() => {
+    try {
+      const v = Number(localStorage.getItem('tracon3d.radarOpacity') ?? 0.7)
+      return Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 0.7
+    } catch {
+      return 0.7
+    }
+  })
   const [radar, setRadarStatus] = useState<RadarStatus>(RADAR_NONE)
   // The scene persists this itself (same key); App only mirrors it for the button.
   const [terrainOn, setTerrainOn] = useState(() => {
@@ -248,6 +256,14 @@ export function App() {
     }
   }, [radarOn])
   useEffect(() => {
+    sceneRef.current?.setRadarOpacity(radarOpacity)
+    try {
+      localStorage.setItem('tracon3d.radarOpacity', String(radarOpacity))
+    } catch {
+      /* ignore */
+    }
+  }, [radarOpacity])
+  useEffect(() => {
     applyTheme(theme)
     sceneRef.current?.setTheme(theme)
   }, [theme])
@@ -312,6 +328,11 @@ export function App() {
         onHome={onHome}
         theme={theme}
         onTheme={onTheme}
+        radarOn={radarOn}
+        radar={radar}
+        radarOpacity={radarOpacity}
+        onRadar={setRadarOn}
+        onRadarOpacity={setRadarOpacity}
       />
       <TrafficList
         aircraft={visible}
@@ -333,9 +354,6 @@ export function App() {
         airspaceOn={airspaceOn}
         airspace={airspace}
         onAirspace={setAirspaceOn}
-        radarOn={radarOn}
-        radar={radar}
-        onRadar={setRadarOn}
         terrainOn={terrainOn}
         onTerrain={setTerrainOn}
         logosOn={logosOn}

@@ -9,6 +9,8 @@ export interface RadarMesh {
   mesh: THREE.Mesh
   /** Replace the dBZ grid (layout of core/radarGrid). */
   setGrid(grid: Uint8Array): void
+  /** Target opacity 0-1; the uniform eases toward it each frame. */
+  setOpacity(a: number): void
   dispose(): void
 }
 
@@ -57,6 +59,7 @@ export function createRadarMesh(airportElevKm: number): RadarMesh {
       uMaxStep: { value: MAX_STEP },
       uGrow: { value: GROW },
       uSigma: { value: SIGMA },
+      uOpacity: { value: 0 },
       uFogCenter: radialFog.center,
       uFogNear: radialFog.near,
       uFogFar: radialFog.far,
@@ -72,9 +75,22 @@ export function createRadarMesh(airportElevKm: number): RadarMesh {
   mesh.frustumCulled = false
   mesh.renderOrder = 10_000 // last: composites over rings, pavement, lights and aircraft
   mesh.visible = false
+  let target = 0.7
+  let last = performance.now()
+  mat.uniforms.uOpacity!.value = target
+  mesh.onBeforeRender = () => {
+    const now = performance.now()
+    const k = 1 - Math.exp(-(now - last) / 120)
+    last = now
+    const u = mat.uniforms.uOpacity!
+    u.value += (target - u.value) * k
+  }
 
   return {
     mesh,
+    setOpacity(a) {
+      target = a
+    },
     setGrid(grid) {
       tex.image.data = grid
       tex.needsUpdate = true

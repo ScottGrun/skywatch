@@ -443,6 +443,7 @@ export function createFlightScene(container: HTMLElement): FlightScene {
     },
     setAirspace: airspace.set,
     setRadar: radar.set,
+    setRadarOpacity: radar.setOpacity,
     setFilter(pred) {
       filter = pred
     },
