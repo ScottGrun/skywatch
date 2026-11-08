@@ -1,4 +1,4 @@
-import type { AirspaceStatus, Theme, ViewPreset } from '../types.ts'
+import type { AirspaceStatus, RadarStatus, Theme, ViewPreset } from '../types.ts'
 import { VerticalSlider } from './VerticalSlider.tsx'
 
 const VIEWS: [ViewPreset, string][] = [
@@ -13,6 +13,9 @@ interface Props {
   airspaceOn: boolean
   airspace: AirspaceStatus
   onAirspace: (on: boolean) => void
+  radarOn: boolean
+  radar: RadarStatus
+  onRadar: (on: boolean) => void
   terrainOn: boolean
   onTerrain: (on: boolean) => void
   logosOn: boolean
@@ -29,6 +32,9 @@ export function Legend({
   airspaceOn,
   airspace,
   onAirspace,
+  radarOn,
+  radar,
+  onRadar,
   terrainOn,
   onTerrain,
   logosOn,
@@ -39,6 +45,14 @@ export function Legend({
   vscale,
   onVscale,
 }: Props) {
+  const radarNote =
+    radarOn && radar.available
+      ? radar.state === 'ok'
+        ? `Radar ${radar.site} � ${new Date(radar.timeMs).toISOString().slice(11, 16)} UTC`
+        : radar.state === 'error'
+          ? 'Radar unavailable'
+          : 'Radar loading�'
+      : ''
   const note = airspaceOn ? (airspace.state === 'loading' ? 'LOADING…' : airspace.note) : ''
   return (
     <section className="panel legend">
@@ -81,6 +95,15 @@ export function Legend({
         >
           LOGOS
         </button>
+        {radar.available && (
+          <button
+            className={radarOn ? 'on' : ''}
+            aria-pressed={radarOn}
+            onClick={() => onRadar(!radarOn)}
+          >
+            RADAR
+          </button>
+        )}
         {theme === 'dark' && (
           <button
             className={lightsOn ? 'on' : ''}
@@ -91,6 +114,7 @@ export function Legend({
           </button>
         )}
         {note && <span className="airspace-note">{note}</span>}
+        {radarNote && <span className="airspace-note">{radarNote}</span>}
       </div>
     </section>
   )

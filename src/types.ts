@@ -118,6 +118,15 @@ export interface AirspaceStatus {
   note: string
 }
 
+export interface RadarStatus {
+  state: 'off' | 'loading' | 'ok' | 'error'
+  /** A radar is within range of the selected airport (the toggle is only offered then). */
+  available: boolean
+  site: string
+  /** Volume scan time, ms since epoch (0 until loaded). */
+  timeMs: number
+}
+
 export type ViewPreset = 'overview' | 'top' | 'side' | 'airport'
 export type Theme = 'dark' | 'light'
 
@@ -137,6 +146,8 @@ export interface FlightScene {
   setFilter(pred: ((a: Aircraft) => boolean) | null): void
   /** Show/hide controlled-airspace volumes around the airport (fetched lazily, off by default). */
   setAirspace(on: boolean): void
+  /** Experimental 3D weather-radar volume (NEXRAD Level II decoded in the browser; off by default). */
+  setRadar(on: boolean): void
   /** Real 3D terrain (default) vs the flat map. Relief animates in/out (~0.6 s); persisted by the scene in localStorage. */
   setTerrain(on: boolean): void
   /** Airline logos on callsign tags (default on; persisted as tracon3d.logos, shared with the UI via src/data/logos). */
@@ -153,6 +164,7 @@ export interface FlightScene {
   on(event: 'select', fn: (id: string | null) => void): () => void
   on(event: 'follow', fn: (on: boolean) => void): () => void
   on(event: 'airspace', fn: (s: AirspaceStatus) => void): () => void
+  on(event: 'radar', fn: (s: RadarStatus) => void): () => void
   dispose(): void
 }
 

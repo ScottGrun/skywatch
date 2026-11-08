@@ -1,0 +1,89 @@
+import * as THREE from 'three'
+import { buildRadarLut } from '../core/radarColor'
+import { GRID } from '../core/radarGrid'
+import { radialFog } from './radialFog'
+import { RADAR_FRAG, RADAR_VERT } from './radarShader'
+import { vscale } from './vertical'
+
+export interface RadarMesh {
+  mesh: THREE.Mesh
+  /** Replace the dBZ grid (layout of core/radarGrid). */
+  setGrid(grid: Uint8Array): void
+  dispose(): void
+}
+
+const MIN_STEP = 0.8 // km
+const MAX_STEP = 4
+const GROW = 0.05
+const SIGMA = 0.45
+
+/** Box volume in the scene's km frame: centered on the airport, MSL 0-12 km shifted by the airport elevation. */
+export function createRadarMesh(airportElevKm: number): RadarMesh {
+  const sx = GRID.nx * GRID.cell
+  const sz = GRID.ny * GRID.cell
+  const sy = GRID.nz * GRID.dz
+  const tex = new THREE.Data3DTexture(
+    new Uint8Array(GRID.nx * GRID.ny * GRID.nz),
+    GRID.nx,
+    GRID.ny,
+    GRID.nz,
+  )
+  tex.format = THREE.RedFormat
+  tex.type = THREE.UnsignedByteType
+  tex.minFilter = tex.magFilter = THREE.LinearFilter
+  tex.unpackAlignment = 1
+  tex.needsUpdate = true
+  const lut = new THREE.DataTexture(
+    buildRadarLut(),
+    256,
+    1,
+    THREE.RGBAFormat,
+    THREE.UnsignedByteType,
+  )
+  lut.minFilter = lut.magFilter = THREE.LinearFilter
+  lut.needsUpdate = true
+
+  const mat = new THREE.ShaderMaterial({
+    glslVersion: THREE.GLSL3,
+    vertexShader: RADAR_VERT,
+    fragmentShader: RADAR_FRAG,
+    uniforms: {
+      uVol: { value: tex },
+      uLut: { value: lut },
+      uSize: { value: new THREE.Vector3(sx, sy, sz) },
+      uOrigin: { value: new THREE.Vector3(0, 0, 0) },
+      uVK: vscale.uniform,
+      uMinStep: { value: MIN_STEP },
+      uMaxStep: { value: MAX_STEP },
+      uGrow: { value: GROW },
+      uSigma: { value: SIGMA },
+      uFogCenter: radialFog.center,
+      uFogNear: radialFog.near,
+      uFogFar: radialFog.far,
+    },
+    side: THREE.BackSide,
+    transparent: true,
+    premultipliedAlpha: true,
+    depthWrite: false,
+  })
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), mat)
+  mesh.position.set(0, sy / 2 - airportElevKm, 0)
+  mesh.frustumCulled = false
+  mesh.renderOrder = 10
+  mesh.visible = false
+
+  return {
+    mesh,
+    setGrid(grid) {
+      tex.image.data = grid
+      tex.needsUpdate = true
+      mesh.visible = true
+    },
+    dispose() {
+      mesh.geometry.dispose()
+      mat.dispose()
+      tex.dispose()
+      lut.dispose()
+    },
+  }
+}

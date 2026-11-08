@@ -3,6 +3,7 @@ import { toLocal } from '../core/geo'
 import type { Aircraft, Airport, FlightScene, Theme, TrafficSource, ViewPreset } from '../types'
 import type { Rect } from './airspaceLabels'
 import { createAirspaceControl } from './airspaceControl'
+import { createRadarControl } from './radarControl'
 import { ViewPool, type FrameCtx } from './aircraftView'
 import { disposeAircraftGeometries } from './aircraftGeometry'
 import { CameraRig } from './camera'
@@ -118,6 +119,7 @@ export function createFlightScene(container: HTMLElement): FlightScene {
   const vroot = new THREE.Group()
   scene.add(vroot)
   const airspace = createAirspaceControl(vroot, overlay)
+  const radar = createRadarControl(vroot)
   const selection = createSelection(scene)
   const history = createHistory(scene)
   const maxAniso = renderer.capabilities.getMaxAnisotropy()
@@ -253,6 +255,7 @@ export function createFlightScene(container: HTMLElement): FlightScene {
     const labelDefs = buildDecor()
     statics = createStaticLabels(overlay, labelDefs)
     airspace.setAirport(ap)
+    radar.setAirport(ap)
     select(null)
     setFollow(false)
     rig.home()
@@ -416,8 +419,9 @@ export function createFlightScene(container: HTMLElement): FlightScene {
   document.addEventListener('visibilitychange', onVisibility)
   if (!document.hidden) start()
 
-  const on = ((event: 'select' | 'follow' | 'airspace', fn: (v: never) => void) => {
+  const on = ((event: 'select' | 'follow' | 'airspace' | 'radar', fn: (v: never) => void) => {
     if (event === 'airspace') return airspace.subscribe(fn as never)
+    if (event === 'radar') return radar.subscribe(fn as never)
     const set = (event === 'select' ? selFns : folFns) as Set<(v: never) => void>
     set.add(fn)
     return () => {
@@ -438,6 +442,7 @@ export function createFlightScene(container: HTMLElement): FlightScene {
       history.set(path, airport, airport.elevationFt)
     },
     setAirspace: airspace.set,
+    setRadar: radar.set,
     setFilter(pred) {
       filter = pred
     },
@@ -494,6 +499,7 @@ export function createFlightScene(container: HTMLElement): FlightScene {
       selection.dispose()
       history.dispose()
       airspace.dispose()
+      radar.dispose()
       pool.dispose()
       clearWorld()
       disposeAircraftGeometries()
