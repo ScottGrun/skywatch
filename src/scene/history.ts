@@ -56,7 +56,7 @@ export function createHistory(scene: THREE.Scene): HistoryHandle {
   geo.setAttribute('position', posA)
   geo.setAttribute('color', colA)
   geo.setDrawRange(0, 0)
-  const mat = new THREE.LineBasicMaterial({ vertexColors: true })
+  const mat = new THREE.LineBasicMaterial({ vertexColors: true, fog: false })
   const line = new THREE.Line(geo, mat)
   line.frustumCulled = false
   line.visible = false

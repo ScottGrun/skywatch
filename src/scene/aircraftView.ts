@@ -66,7 +66,7 @@ export function createViewKit(): ViewKit {
   ])
   const dotGeo = new THREE.RingGeometry(0.13, 0.16, 32) // thin, tight ring at the foot of the drop line
   dotGeo.rotateX(-Math.PI / 2)
-  return { dropGeo, dotGeo, trailMat: new THREE.LineBasicMaterial({ vertexColors: true }) }
+  return { dropGeo, dotGeo, trailMat: new THREE.LineBasicMaterial({ vertexColors: true, fog: false }) }
 }
 
 export function disposeViewKit(k: ViewKit): void {
@@ -110,11 +110,12 @@ export class AircraftView {
   private drop: THREE.Line
   private dot: THREE.Mesh
   private trail: LiveTrail
-  private dropMat = new THREE.LineBasicMaterial({ transparent: true, opacity: DROP_OPACITY })
+  private dropMat = new THREE.LineBasicMaterial({ transparent: true, opacity: DROP_OPACITY, fog: false })
   private dotMat = new THREE.MeshBasicMaterial({
     transparent: true,
     opacity: DOT_OPACITY,
     side: THREE.DoubleSide,
+    fog: false,
   })
   private cls: AircraftClass | null = null
   private type = ''
