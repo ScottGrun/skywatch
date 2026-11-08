@@ -107,7 +107,6 @@ export class CameraRig {
   }
 
   zoom(deltaY: number): void {
-    this.autoOrbit = false
     this.goal.r = Math.min(R_MAX, Math.max(R_MIN, this.goal.r * Math.exp(deltaY * 0.0012)))
   }
 
