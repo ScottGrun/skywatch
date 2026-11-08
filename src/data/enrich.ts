@@ -1,6 +1,7 @@
 import { aircraftClassFor } from '../core/aircraftClass.ts'
 import type { AircraftClass } from '../types.ts'
 import type { AircraftDb } from './aircraftDb.ts'
+import { isAirlineCallsign, type RouteStore } from './routeStore.ts'
 
 export interface AircraftMeta {
   typeCode: string
@@ -23,14 +24,16 @@ type Slot<T> = { value: T | null; retryAt: number; pending: boolean }
 
 const MAX_CONCURRENT = 4
 const MAX_QUEUE = 600
-const RETRY_MS = 60_000
-const FLIGHT_CALLSIGN = /^[A-Z]{3}\d[A-Z0-9]{0,4}$/
+const RETRY_MS = 120_000 // after a 503/network failure; empty results are never stored as final
 
 const pick = (e: { iata?: string; icao?: string } | null | undefined): string =>
   e?.iata || e?.icao || ''
 
 /** Lazy, throttled, in-memory-cached lookups against /api/aircraft and /api/route. */
-export function createEnricher(fetchFn: FetchFn, now: () => number = Date.now, db?: AircraftDb) {
+export function createEnricher(fetchFn: FetchFn, now: () => number = Date.now,
+  db?: AircraftDb,
+  routeStore?: RouteStore,
+) {
   const aircraft = new Map<string, Slot<AircraftMeta>>()
   const routes = new Map<string, Slot<RouteMeta>>()
   const queue: Array<() => Promise<void>> = []
@@ -96,14 +99,23 @@ export function createEnricher(fetchFn: FetchFn, now: () => number = Date.now, d
     request(id: string, callsign: string, hint?: FeedHint): void {
       ensure(aircraft, id, () => loadAircraft(id, hint))
       const cs = callsign.trim().toUpperCase()
-      if (FLIGHT_CALLSIGN.test(cs)) {
+      if (isAirlineCallsign(cs)) {
+        if (!routes.get(cs)?.value) {
+          const stored = routeStore?.get(cs)
+          if (stored) {
+            routes.set(cs, { value: stored, retryAt: 0, pending: false })
+            return
+          }
+        }
         ensure(routes, cs, () =>
           getJson(`/api/route/${cs}`).then((j) => {
             const o = j as {
               origin?: { iata?: string; icao?: string }
               dest?: { iata?: string; icao?: string }
             }
-            return { origin: pick(o.origin), dest: pick(o.dest) }
+            const r = { origin: pick(o.origin), dest: pick(o.dest) }
+            routeStore?.set(cs, r)
+            return r
           }),
         )
       }

@@ -21,6 +21,10 @@ export function decodeHeight(src: ElevSource, r: number, g: number, b: number): 
   return src === 'mapbox' ? -10000 + (r * 65536 + g * 256 + b) * 0.1 : r * 256 + g + b / 256 - 32768
 }
 
+/** Decoded tiles kept across airport switches (LRU by insertion order; ~256 KB each). */
+const decoded = new Map<string, Float32Array>()
+const DECODED_MAX = 160
+
 async function fetchTile(
   src: ElevSource,
   z: number,
@@ -29,7 +33,14 @@ async function fetchTile(
   token: string | undefined,
   signal: AbortSignal,
 ): Promise<Float32Array> {
-  const res = await fetch(elevationUrl(src, z, x, y, token), { signal })
+  const url = elevationUrl(src, z, x, y, token)
+  const hit = decoded.get(url)
+  if (hit) {
+    decoded.delete(url)
+    decoded.set(url, hit)
+    return hit
+  }
+  const res = await fetch(url, { signal })
   if (!res.ok) throw new Error(`elevation tile ${res.status}`)
   const bmp = await createImageBitmap(await res.blob(), {
     colorSpaceConversion: 'none',
@@ -43,6 +54,8 @@ async function fetchTile(
   bmp.close()
   for (let i = 0; i < out.length; i++)
     out[i] = decodeHeight(src, d[i * 4], d[i * 4 + 1], d[i * 4 + 2])
+  decoded.set(url, out)
+  if (decoded.size > DECODED_MAX) decoded.delete(decoded.keys().next().value as string)
   return out
 }
 

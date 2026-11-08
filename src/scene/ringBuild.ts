@@ -3,17 +3,20 @@ import { toLocal } from '../core/geo'
 import type { Airport, Theme } from '../types'
 import type { LodRing } from './lodRings'
 import { PALETTES } from './theme'
+import { nextFrame } from './frameYield'
+import type { TileCuller } from './tileCull'
 import type { TileSlot, TileLoader } from './tileLoader'
 import { buildTileGeometry, createTerrainMaterial, type TileSpec } from './terrainMesh'
 import { patchTileRange, tileXToLon, tileYToLat } from './tileMath'
 
-const BATCH_MS = 6
+const BATCH_MS = 5
 
 export interface RingStats {
   slots: TileSlot[]
   /** Tiles in the ring (for reporting). */
   count: number
   triangles: number
+  culler: TileCuller
 }
 
 /**
@@ -57,11 +60,12 @@ export async function buildLodRing(
       const mesh = new THREE.Mesh(buildTileGeometry(spec), mat)
       mesh.renderOrder = order
       group.add(mesh)
+      out.culler.add(mesh)
       out.triangles += segs * segs * 2 + 8 * segs
       const slot: TileSlot = { mat, z, x, y, ver: 0, lowRes: true }
       out.slots.push(slot)
       tiles.load(slot, theme)
     } while (i < jobs.length && performance.now() < end)
-    await new Promise((res) => setTimeout(res))
+    await nextFrame()
   }
 }

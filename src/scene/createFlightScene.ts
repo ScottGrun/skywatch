@@ -141,6 +141,9 @@ export function createFlightScene(container: HTMLElement): FlightScene {
   let airport: Airport | null = null
   let traffic: TrafficSource | null = null
   let selId: string | null = null
+  let tagsOn = true
+  let trailsOn = true
+  let groundColorOn = false
   let follow = false
   let filter: ((a: Aircraft) => boolean) | null = null
   let world: THREE.Group | null = null
@@ -291,7 +294,16 @@ export function createFlightScene(container: HTMLElement): FlightScene {
   const hover = createHover(cv, (x, y) => pickNearest(pool.active.values(), rig.camera, w, h, x, y))
 
   // --- frame loop ---
-  const ctx: FrameCtx = { nowMs: 0, dt: 0, elevFt: 0, cam: rig.camera.position, focalPx: 1 }
+  const ctx: FrameCtx = {
+    nowMs: 0,
+    dt: 0,
+    elevFt: 0,
+    cam: rig.camera.position,
+    focalPx: 1,
+    trails: true,
+    tags: true,
+    groundColor: false,
+  }
   const occupied: Rect[] = []
   const seen = new Set<string>()
   const gone: string[] = []
@@ -304,7 +316,7 @@ export function createFlightScene(container: HTMLElement): FlightScene {
     const dt = Math.min(0.1, Math.max(0, (t - last) / 1000))
     last = t
     const nowMs = Date.now()
-    const acs = airport && traffic ? traffic.snapshot(nowMs) : EMPTY
+    const acs = airport && traffic ? (traffic.live?.(nowMs) ?? traffic.snapshot(nowMs)) : EMPTY
 
     // vertical scale and terrain relief easing
     if (vk !== vTarget) {
@@ -346,6 +358,7 @@ export function createFlightScene(container: HTMLElement): FlightScene {
     radialFog.far.value = far
     radialFog.near.value = Math.min(GFOG_NEAR_A + GFOG_NEAR_B * orb.r, far * 0.6)
 
+    tiles?.cull()
     const cp = rig.camera.position
     const cg = groundY(cp.x, -cp.z) + 0.5
     if (cp.y < cg) {
@@ -353,6 +366,9 @@ export function createFlightScene(container: HTMLElement): FlightScene {
       rig.camera.updateMatrixWorld()
     }
 
+    ctx.trails = trailsOn
+    ctx.tags = tagsOn
+    ctx.groundColor = groundColorOn
     ctx.nowMs = nowMs
     ctx.dt = dt
     ctx.focalPx = h / (2 * Math.tan((rig.camera.fov * Math.PI) / 360))
@@ -391,6 +407,7 @@ export function createFlightScene(container: HTMLElement): FlightScene {
       const hide =
         sp.behind ||
         !v.showLabel ||
+        (!tagsOn && !isSel) ||
         sp.x < -150 ||
         sp.x > w + 50 ||
         sp.y < -50 ||
@@ -403,7 +420,17 @@ export function createFlightScene(container: HTMLElement): FlightScene {
     for (const s of statics)
       placeStatic(s, projectToScreen(rig.camera, w, h, s.e, groundY(s.e, s.n), -s.n, sp))
 
+    pool.flush()
     renderer.render(scene, rig.camera)
+    if (import.meta.env.DEV) {
+      ;(window as unknown as { __skywatch?: unknown }).__skywatch = {
+        calls: renderer.info.render.calls,
+        aircraft: pool.active.size,
+        triangles: renderer.info.render.triangles,
+        geometries: renderer.info.memory.geometries,
+        textures: renderer.info.memory.textures,
+      }
+    }
   }
 
   const start = () => {
@@ -453,6 +480,15 @@ export function createFlightScene(container: HTMLElement): FlightScene {
       rig.home()
     },
     setLogos: setLogosEnabled,
+    setTrails(on) {
+      trailsOn = on
+    },
+    setGroundColor(on) {
+      groundColorOn = on
+    },
+    setTags(on) {
+      tagsOn = on
+    },
     setLights(on) {
       lightsOn = on
       if (lights) lights.root.visible = on

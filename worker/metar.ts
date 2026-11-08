@@ -1,3 +1,4 @@
+import { transientResults } from './adsbdb.ts'
 import type { FetchFn } from './opensky.ts'
 import { TtlCache } from './ttlCache.ts'
 
@@ -78,19 +79,20 @@ export function createMetarClient(deps: { fetch: FetchFn; now?: () => number }) 
       const hit = cache.get(icao, now())
       if (hit) return hit
       const none = { icao, raw: null }
+      const transient = <T extends object>(v: T): T => (transientResults.add(v), v)
       try {
         const res = await deps.fetch(
           `https://aviationweather.gov/api/data/metar?ids=${icao}&format=json`,
           { headers: { 'user-agent': UA, accept: 'application/json' } },
         )
-        if (!res.ok) return cache.peek(icao) ?? none
+        if (!res.ok) return cache.peek(icao) ?? transient(none)
         const text = await res.text()
         const arr = text ? (JSON.parse(text) as RawMetar[]) : []
         const out = mapMetar(icao, arr[0])
         cache.set(icao, out, now())
         return out
       } catch {
-        return cache.peek(icao) ?? none
+        return cache.peek(icao) ?? transient(none)
       }
     },
   }

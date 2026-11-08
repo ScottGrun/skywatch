@@ -17,14 +17,47 @@ export interface LocalKm {
 const kx = (lat: number) => 111.32 * Math.cos(lat * D2R)
 const ky = 110.574
 
-/** Lat/lon to km east/north of `origin` (equirectangular, fine within ~200 km). */
-export function toLocal(origin: LatLon, lat: number, lon: number): LocalKm {
-  return { e: (lon - origin.lon) * kx(origin.lat), n: (lat - origin.lat) * ky }
+/** Wraps a longitude difference (or longitude) into [-180, 180]. */
+export function wrapLon(d: number): number {
+  if (d >= -180 && d <= 180) return d
+  const w = ((((d + 180) % 360) + 360) % 360) - 180
+  return w === -180 && d > 0 ? 180 : w
 }
 
-/** Inverse of `toLocal`. */
+/**
+ * Lat/lon to km east/north of `origin` (equirectangular, fine within ~200 km). Longitude difference is
+ * wrapped across the antimeridian. Pass `out` to avoid an allocation in per-frame code.
+ */
+export function toLocal(origin: LatLon, lat: number, lon: number, out?: LocalKm): LocalKm {
+  const e = wrapLon(lon - origin.lon) * kx(origin.lat)
+  const n = (lat - origin.lat) * ky
+  if (!out) return { e, n }
+  out.e = e
+  out.n = n
+  return out
+}
+
+/** Inverse of `toLocal`; the longitude is wrapped into [-180, 180]. */
 export function toLatLon(origin: LatLon, e: number, n: number): LatLon {
-  return { lat: origin.lat + n / ky, lon: origin.lon + e / kx(origin.lat) }
+  return { lat: origin.lat + n / ky, lon: wrapLon(origin.lon + e / kx(origin.lat)) }
+}
+
+export const BBOX_STEP_DEG = 0.5
+
+/**
+ * `/api/states` box around `c`, padded and snapped outward to 0.5 deg (matches the Worker, so cache keys
+ * collapse). Clamped to +-180 / +-90: near the antimeridian the far side is not requested (aircraft within
+ * the pad on the other side stay invisible) rather than splitting into two requests.
+ */
+export function statesBbox(c: LatLon, latPad: number, lonPad: number) {
+  const lo = (v: number) => Math.floor(v / BBOX_STEP_DEG + 1e-9) * BBOX_STEP_DEG
+  const hi = (v: number) => Math.ceil(v / BBOX_STEP_DEG - 1e-9) * BBOX_STEP_DEG
+  return {
+    lamin: Math.max(-90, lo(c.lat - latPad)),
+    lomin: Math.max(-180, lo(c.lon - lonPad)),
+    lamax: Math.min(90, hi(c.lat + latPad)),
+    lomax: Math.min(180, hi(c.lon + lonPad)),
+  }
 }
 
 /** Great-circle distance in nautical miles. */

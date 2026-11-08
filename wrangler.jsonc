@@ -6,6 +6,6 @@
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
     // Bot check runs on pages + API only; hashed bundles and baked data serve directly (free, no Worker invocations).
-    "run_worker_first": ["/*", "!/assets/*", "!/models/*", "!/logos/*", "!/data/*", "!/robots.txt"],
+    "run_worker_first": ["/*", "!/assets/*", "!/models/*", "!/logos/*", "!/data/*", "!/robots.txt", "!/favicon.svg"],
   },
 }

@@ -73,7 +73,7 @@ Data bake scripts (some outputs are gitignored; the app degrades gracefully with
 
 | Command              | Produces                                             |
 | -------------------- | ---------------------------------------------------- |
-| `pnpm bake:airports` | `public/data/airports.json` from OurAirports         |
+| `pnpm bake:airports` | `src/data/baked/airports-*` + `rw-*` from OurAirports |
 | `pnpm bake:aircraft` | aircraft type database from tar1090-db               |
 | `pnpm bake:logos`    | airline logos in `public/logos/`                     |
 | `pnpm bake:models`   | optimized aircraft `.glb` models in `public/models/` |

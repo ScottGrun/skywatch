@@ -11,7 +11,7 @@ import {
 export const ADSBLOL_BASE = 'https://api.adsb.lol/v2'
 export const USER_AGENT = 'tracon-flight-tracker/0.1 (open-source ADS-B viewer; Cloudflare Worker)'
 export const MAX_RADIUS_NM = 250
-export const POLL_MS = 5000
+export const POLL_MS = 8000
 const MAX_POS_AGE_S = 60
 const FT_PER_M = 3.28084
 const KT_PER_MS = 1.943844

@@ -19,7 +19,6 @@ const RAMP = `linear-gradient(90deg, ${Array.from({ length: 13 }, (_, i) => {
 }).join(', ')})`
 
 function statusLine(on: boolean, r: RadarStatus): string {
-  if (!r.available) return 'No radar in range'
   if (!on) return 'Off'
   if (r.state === 'loading' || r.state === 'off') return 'Loading volume…'
   if (r.state === 'decoding') return 'Decoding…'
@@ -99,57 +98,60 @@ export function WeatherDropdown({
             <span className="fl-box">{radarOn ? '✓' : ''}</span>
             <span className="fl-name">NEXRAD radar</span>
           </div>
-          <div className="wx-body">
-            <div className="wx-row" role="radiogroup" aria-label="Radar style">
-              <span className="label">STYLE</span>
-              <span className="wx-style">
-                {(['volume', 'blocks'] as const).map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    role="radio"
-                    aria-checked={style === s}
-                    className={style === s ? 'on' : ''}
-                    onClick={() => onStyle(s)}
-                  >
-                    {s === 'volume' ? 'Volume' : 'Blocks'}
-                  </button>
+          {!radar.available && <div className="wx-none">No radar in range</div>}
+          {radar.available && (
+            <div className="wx-body">
+              <div className="wx-row" role="radiogroup" aria-label="Radar style">
+                <span className="label">STYLE</span>
+                <span className="wx-style">
+                  {(['volume', 'blocks'] as const).map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      role="radio"
+                      aria-checked={style === s}
+                      className={style === s ? 'on' : ''}
+                      onClick={() => onStyle(s)}
+                    >
+                      {s === 'volume' ? 'Volume' : 'Blocks'}
+                    </button>
+                  ))}
+                </span>
+              </div>
+              <div className="vscale wx-op">
+                <span className="label">OPACITY {pct}%</span>
+                <input
+                  type="range"
+                  aria-label="Radar opacity"
+                  min={0}
+                  max={100}
+                  step={5}
+                  value={pct}
+                  style={{ '--fill': `${pct}%` } as React.CSSProperties}
+                  onChange={(e) => onOpacity(Number(e.target.value) / 100)}
+                />
+              </div>
+              <div className="wx-row">
+                <span className="label">SCAN</span>
+                <b>{scan}</b>
+              </div>
+              <div className="wx-row">
+                <span className="label">STATUS</span>
+                <b>{statusLine(radarOn, radar)}</b>
+              </div>
+              <div className="wx-ramp" style={{ background: RAMP }} />
+              <div className="wx-ticks">
+                {STOPS.map((d) => (
+                  <span key={d}>{d}</span>
                 ))}
-              </span>
+                <span>dBZ</span>
+              </div>
+              <div className="wx-ends label">
+                <span>LIGHT</span>
+                <span>HEAVY</span>
+              </div>
             </div>
-            <div className="vscale wx-op">
-              <span className="label">OPACITY {pct}%</span>
-              <input
-                type="range"
-                aria-label="Radar opacity"
-                min={0}
-                max={100}
-                step={5}
-                value={pct}
-                style={{ '--fill': `${pct}%` } as React.CSSProperties}
-                onChange={(e) => onOpacity(Number(e.target.value) / 100)}
-              />
-            </div>
-            <div className="wx-row">
-              <span className="label">SCAN</span>
-              <b>{scan}</b>
-            </div>
-            <div className="wx-row">
-              <span className="label">STATUS</span>
-              <b>{statusLine(radarOn, radar)}</b>
-            </div>
-            <div className="wx-ramp" style={{ background: RAMP }} />
-            <div className="wx-ticks">
-              {STOPS.map((d) => (
-                <span key={d}>{d}</span>
-              ))}
-              <span>dBZ</span>
-            </div>
-            <div className="wx-ends label">
-              <span>LIGHT</span>
-              <span>HEAVY</span>
-            </div>
-          </div>
+          )}
         </div>
       )}
     </div>

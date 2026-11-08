@@ -1,6 +1,7 @@
 import './arrivals.css'
 import { useEffect, useMemo, useState } from 'react'
-import type { Aircraft, Airport } from '../types.ts'
+import { feedState, listMessage } from '../core/feedState.ts'
+import type { Aircraft, Airport, FeedStatus } from '../types.ts'
 import { ArrivalsBoard } from './ArrivalsBoard.tsx'
 import { TrafficRow } from './TrafficRow.tsx'
 
@@ -13,11 +14,15 @@ interface Props {
   airport: Airport | null
   /** Aircraft before filtering, for the "N of M" header. */
   total: number
+  /** Traffic feed health, for the loading / unavailable messages. */
+  status: FeedStatus
   selectedId: string | null
   onSelect: (id: string | null) => void
 }
 
-export function TrafficList({ aircraft, airport, total, selectedId, onSelect }: Props) {
+export function TrafficList({ aircraft, airport, total, status, selectedId, onSelect }: Props) {
+  const state = feedState(status)
+  const msg = listMessage(state, aircraft.length, total)
   const sorted = useMemo(() => [...aircraft].sort((a, b) => b.altFt - a.altFt), [aircraft])
   const count = (c: string) => aircraft.filter((a) => a.category === c).length
   const [open, setOpen] = useState(() => localStorage.getItem(OPEN_KEY) !== '0')
@@ -85,12 +90,19 @@ export function TrafficList({ aircraft, airport, total, selectedId, onSelect }: 
       )}
       {open && tab === 'traffic' && (
         <div className="rows">
+          {state === 'error' && (
+            <div className="feed-note" role="status">
+              Feed unavailable — retrying
+            </div>
+          )}
+          {msg === 'loading' && <div className="arr-empty">Loading traffic…</div>}
+          {msg === 'no-match' && <div className="arr-empty">No aircraft match this filter</div>}
           {sorted.map((a) => (
             <TrafficRow
               key={a.id}
               a={a}
               selected={a.id === selectedId}
-              onSelect={() => onSelect(a.id === selectedId ? null : a.id)}
+              onSelect={onSelect}
             />
           ))}
         </div>

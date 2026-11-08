@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import type { Aircraft } from '../types.ts'
 import { AirlineLogo } from './AirlineLogo.tsx'
 import { altColor, callsignOf, dash, fmtAlt, fmtVsShort } from './format.ts'
@@ -5,15 +6,19 @@ import { altColor, callsignOf, dash, fmtAlt, fmtVsShort } from './format.ts'
 interface Props {
   a: Aircraft
   selected: boolean
-  onSelect: () => void
+  /** Called with the aircraft id, or null to deselect when this row is already selected. Keep it stable. */
+  onSelect: (id: string | null) => void
   /** Second-line text; defaults to "origin → dest". */
   route?: string
 }
 
 /** One aircraft row, shared by the TRAFFIC and ARRIVALS tabs. */
-export function TrafficRow({ a, selected, onSelect, route }: Props) {
+export const TrafficRow = memo(function TrafficRow({ a, selected, onSelect, route }: Props) {
   return (
-    <div className={'row' + (selected ? ' sel' : '')} onClick={onSelect}>
+    <div
+      className={'row' + (selected ? ' sel' : '')}
+      onClick={() => onSelect(selected ? null : a.id)}
+    >
       <div>
         <div>
           <AirlineLogo callsign={callsignOf(a)} /> <b className="cs">{callsignOf(a)}</b>{' '}
@@ -27,4 +32,4 @@ export function TrafficRow({ a, selected, onSelect, route }: Props) {
       </div>
     </div>
   )
-}
+})

@@ -61,8 +61,8 @@ describe('createTraffic', () => {
     await vi.advanceTimersByTimeAsync(10)
     expect(t.status()).toBe('live')
     const url = String(f.mock.calls[0][0])
-    expect(url).toContain('lamin=47.69')
-    expect(url).toContain('lomax=-121.18')
+    expect(url).toContain('lamin=47.5')
+    expect(url).toContain('lomax=-121')
     await vi.advanceTimersByTimeAsync(10) // let enrichment resolve
     const [a] = t.snapshot(Date.now())
     expect(a.id).toBe('abc123')
@@ -116,6 +116,55 @@ describe('createTraffic', () => {
     await vi.advanceTimersByTimeAsync(120_000)
     expect(t.status()).toBe('live')
     expect(seen).toEqual(['live', 'delayed', 'offline', 'live'])
+    t.dispose()
+  })
+
+  it('passes an abort signal, never overlaps polls, and reports error then recovers', async () => {
+    let calls = 0
+    const f = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+      const u = String(url)
+      if (!u.startsWith('/api/states')) return json({})
+      calls++
+      expect(init?.signal).toBeInstanceOf(AbortSignal)
+      if (calls === 1) throw new DOMException('timeout', 'TimeoutError')
+      return json({ time: 1, states: [state()], pollMs: 8000 })
+    }) as unknown as typeof fetch
+    const t = createTraffic(AP, { fetch: f })
+    expect(t.status()).toBe('connecting')
+    await vi.advanceTimersByTimeAsync(10)
+    expect(t.status()).toBe('delayed') // maps to the list's error notice
+    await vi.advanceTimersByTimeAsync(20_000)
+    expect(t.status()).toBe('live')
+    expect(t.snapshot(Date.now())).toHaveLength(1)
+    t.dispose()
+  })
+
+  it('live() reuses persistent objects; snapshot() returns fresh copies', async () => {
+    const f = makeFetch({ states: () => [state()] })
+    const t = createTraffic(AP, { fetch: f })
+    await vi.advanceTimersByTimeAsync(10)
+    const a = t.live!(Date.now())
+    const first = a[0]
+    const n0 = first.n
+    const b = t.live!(Date.now() + 5000)
+    expect(b).toBe(a)
+    expect(b[0]).toBe(first)
+    expect(first.n).toBeLessThan(n0)
+    const snap = t.snapshot(Date.now())
+    expect(snap[0]).not.toBe(first)
+    expect(snap[0].id).toBe(first.id)
+    t.dispose()
+  })
+
+  it('places aircraft across the antimeridian on the correct side', async () => {
+    const ap = { ...AP, icao: 'UHMA', iata: 'DYR', lat: 64.735, lon: 177.741 }
+    const f = makeFetch({ states: () => [state({ lat: 64.9, lon: -179 })] })
+    const t = createTraffic(ap, { fetch: f })
+    await vi.advanceTimersByTimeAsync(10)
+    const [a] = t.snapshot(Date.now())
+    expect(a.e).toBeGreaterThan(0)
+    expect(a.distNm).toBeLessThan(100)
+    expect(String(f.mock.calls[0][0])).toContain('lomax=180')
     t.dispose()
   })
 

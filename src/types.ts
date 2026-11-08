@@ -27,6 +27,7 @@ export interface Airport {
   lat: number
   lon: number
   elevationFt: number
+  size?: 'large' | 'medium' | 'small' // OurAirports class; small = scheduled service only
   runways: Runway[] // may be empty → scene draws fallback layout
 }
 
@@ -76,6 +77,11 @@ export interface Aircraft {
 export interface TrafficSource {
   /** Interpolated snapshot for render time `nowMs` (performance-independent, Date.now() based). Cheap; call per frame. */
   snapshot(nowMs: number): Aircraft[]
+  /**
+   * Allocation-free variant of `snapshot` for per-frame use: returns a shared array of persistent objects
+   * updated in place. Valid until the next call; do not retain or mutate.
+   */
+  live?(nowMs: number): readonly Aircraft[]
   status(): FeedStatus
   subscribeStatus(fn: (s: FeedStatus) => void): () => void
   /** Which upstream feed served the last response ("adsblol" | "opensky"); null before the first one. */
@@ -163,6 +169,12 @@ export interface FlightScene {
   setLogos(on: boolean): void
   /** Runway lighting (edge, threshold, centerline, approach, PAPI; default on, persisted by the scene as tracon3d.lights). */
   setLights(on: boolean): void
+  /** Live trailing lines behind aircraft (default on; App persists tracon3d.trails). History of the selected aircraft always shows. */
+  setTrails(on: boolean): void
+  /** Callsign tags above aircraft (default on; App persists tracon3d.tags). The selected aircraft's tag always shows. */
+  setTags(on: boolean): void
+  /** Colour on-ground aircraft by the altitude ramp (true) or neutral grey (false, default; App persists tracon3d.groundColor). */
+  setGroundColor(on: boolean): void
   /** Vertical exaggeration of altitude and relief, 1..10 (default 3). Eased in the render loop; persisted by the scene. */
   setVerticalScale(k: number): void
   /** Dark (default) or light look: renderer/fog colors, basemap tiles (swapped in place), decor, tags. Not persisted by the scene. */

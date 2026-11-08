@@ -1,0 +1,7 @@
+/* display popover (reuses .filter / .filter-field / .filter-dd / .fl-row) */
+.ly-sum {
+  min-width: 36px;
+}
+.ly-dd {
+  width: 240px;
+}

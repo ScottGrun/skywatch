@@ -81,15 +81,15 @@ export function Legend({
         >
           LOGOS
         </button>
-        {theme === 'dark' && (
-          <button
-            className={lightsOn ? 'on' : ''}
-            aria-pressed={lightsOn}
-            onClick={() => onLights(!lightsOn)}
-          >
-            LIGHTS
-          </button>
-        )}
+        <button
+          className={lightsOn && theme === 'dark' ? 'on' : ''}
+          aria-pressed={lightsOn && theme === 'dark'}
+          disabled={theme !== 'dark'}
+          title={theme !== 'dark' ? 'Night lights are dark-theme only' : undefined}
+          onClick={() => onLights(!lightsOn)}
+        >
+          LIGHTS
+        </button>
         {note && <span className="airspace-note">{note}</span>}
       </div>
     </section>

@@ -28,21 +28,25 @@ export function createPhotoClient(deps: { fetch: FetchFn; now?: () => number }) 
   const now = deps.now ?? Date.now
   const cache = new TtlCache<PhotoInfo | null>(TTL_MS, 2000)
   return {
-    async get(hex: string): Promise<PhotoInfo | null> {
+    /** `transient` is true when upstream failed (not a genuine "no photo"), so callers must not cache it. */
+    async lookup(hex: string): Promise<{ photo: PhotoInfo | null; transient: boolean }> {
       const key = hex.toLowerCase()
       const hit = cache.get(key, now())
-      if (hit !== undefined) return hit
+      if (hit !== undefined) return { photo: hit, transient: false }
       try {
         const res = await deps.fetch(`https://api.planespotters.net/pub/photos/hex/${key}`, {
           headers: { 'user-agent': UA, accept: 'application/json' },
         })
-        if (!res.ok) return null
+        if (!res.ok) return { photo: null, transient: true }
         const v = mapPhoto(await res.json().catch(() => null))
         cache.set(key, v, now())
-        return v
+        return { photo: v, transient: false }
       } catch {
-        return null
+        return { photo: null, transient: true }
       }
+    },
+    async get(hex: string): Promise<PhotoInfo | null> {
+      return (await this.lookup(hex)).photo
     },
   }
 }

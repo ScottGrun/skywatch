@@ -5,6 +5,7 @@ import { createAirspaceClient } from './airspace.ts'
 import { createPhotoClient } from './photo.ts'
 import { createMetarClient } from './metar.ts'
 import { createTraceClient } from './trace.ts'
+import { parseStatesBbox, statesCacheUrl } from './bbox.ts'
 import { createOpenSkyClient, type FetchFn } from './opensky.ts'
 
 interface Env {
@@ -43,6 +44,8 @@ function airspace() {
   return (airspaceClient ??= createAirspaceClient({ fetch: doFetch }))
 }
 
+const NO_STORE = { 'cache-control': 'no-store' }
+
 function json(body: unknown, status = 200, headers: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -51,7 +54,7 @@ function json(body: unknown, status = 200, headers: Record<string, string> = {})
 }
 
 export default {
-  async fetch(req: Request, env: Env): Promise<Response> {
+  async fetch(req: Request, env: Env, ctx?: { waitUntil(p: Promise<unknown>): void }): Promise<Response> {
     const url = new URL(req.url)
     const path = url.pathname
 
@@ -60,20 +63,23 @@ export default {
       return new Response('Forbidden', { status: 403 })
 
     if (path === '/api/states') {
-      const q = url.searchParams
-      const [lamin, lomin, lamax, lomax] = ['lamin', 'lomin', 'lamax', 'lomax'].map((k) =>
-        q.has(k) ? Number(q.get(k)) : NaN,
-      )
-      if (![lamin, lomin, lamax, lomax].every(Number.isFinite) || lamin >= lamax || lomin >= lomax)
-        return json({ error: 'lamin, lomin, lamax, lomax required' }, 400)
-      const r = await (wantsOpenSky(env) ? openSky(env) : adsbLol).getStates({
-        lamin,
-        lomin,
-        lamax,
-        lomax,
-      })
+      const bbox = parseStatesBbox(url.searchParams)
+      if (!bbox) return json({ error: 'valid lamin, lomin, lamax, lomax required (max 3.5 x 4.5 deg)' }, 400)
+      // Edge cache keyed on the normalized (quantized) box: one upstream fetch per ~5 s per area.
+      const edge = typeof caches !== 'undefined' ? (caches as unknown as { default: Cache }).default : null
+      const key = new Request(statesCacheUrl(url.origin, bbox))
+      const hit = await edge?.match(key)
+      if (hit) return hit
+      const r = await (wantsOpenSky(env) ? openSky(env) : adsbLol).getStates(bbox)
       const h: Record<string, string> = { 'cache-control': 'no-store' }
       if (r.stale) h['x-stale'] = '1'
+      if (r.status === 200 && !r.stale) {
+        // s-maxage lets the edge keep it; max-age=0 keeps browsers polling.
+        h['cache-control'] = 'public, max-age=0, s-maxage=5'
+        const res = json(r.body, 200, h)
+        if (edge) ctx?.waitUntil(edge.put(key, res.clone()))
+        return res
+      }
       return json(r.body, r.status, h)
     }
 
@@ -81,36 +87,44 @@ export default {
     if (ac) {
       const info = await adsbdb.aircraft(ac[1].toLowerCase())
       // Upstream failure: 503 so the client retries instead of caching "unknown" for the session.
-      if (transientResults.has(info)) return json(info, 503, { 'cache-control': 'no-store' })
+      if (transientResults.has(info)) return json(info, 503, NO_STORE)
       return json(info, 200, { 'cache-control': 'public, max-age=86400' })
     }
 
     const ph = /^\/api\/photo\/([0-9a-fA-F]{6})$/.exec(path)
     if (ph) {
-      return json(await photos.get(ph[1].toLowerCase()), 200, {
-        'cache-control': 'public, max-age=86400',
-      })
+      const { photo, transient } = await photos.lookup(ph[1].toLowerCase())
+      if (transient) return json(photo, 503, NO_STORE)
+      return json(photo, 200, { 'cache-control': 'public, max-age=86400' })
     }
 
     const tr = /^\/api\/track\/([0-9a-fA-F]{6})$/.exec(path)
     if (tr) {
       const id = tr[1].toLowerCase()
+      // Edge cache per hex for 60 s: parsing trace JSON is the CPU-heavy part.
+      const edge = typeof caches !== 'undefined' ? (caches as unknown as { default: Cache }).default : null
+      const key = new Request(`${url.origin}/api/track/${id}`)
+      const hit = await edge?.match(key)
+      if (hit) return hit
       const r = await (wantsOpenSky(env) ? openSky(env).getTrack(id) : traces.getTrack(id))
-      return json(r.body, r.status, { 'cache-control': 'no-store' })
+      if (r.status !== 200) return json(r.body, r.status, NO_STORE)
+      const res = json(r.body, 200, { 'cache-control': 'public, max-age=0, s-maxage=60' })
+      if (edge) ctx?.waitUntil(edge.put(key, res.clone()))
+      return res
     }
 
     const rt = /^\/api\/route\/([A-Za-z0-9]{2,10})$/.exec(path)
     if (rt) {
-      return json(await adsbdb.route(rt[1].toUpperCase()), 200, {
-        'cache-control': 'public, max-age=21600',
-      })
+      const info = await adsbdb.route(rt[1].toUpperCase())
+      if (transientResults.has(info)) return json(info, 503, NO_STORE)
+      return json(info, 200, { 'cache-control': 'public, max-age=21600' })
     }
 
     const mt = /^\/api\/metar\/([A-Za-z0-9]{3,4})$/.exec(path)
     if (mt) {
-      return json(await metars.get(mt[1].toUpperCase()), 200, {
-        'cache-control': 'public, max-age=300',
-      })
+      const m = await metars.get(mt[1].toUpperCase())
+      if (typeof m === 'object' && m !== null && transientResults.has(m)) return json(m, 503, NO_STORE)
+      return json(m, 200, { 'cache-control': 'public, max-age=300' })
     }
 
     if (path === '/api/airspace') {

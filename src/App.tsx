@@ -11,7 +11,8 @@ import type {
   ViewPreset,
 } from './types.ts'
 import { nearbyAirports } from './core/nearby.ts'
-import { loadAirports } from './data/airports.ts'
+import { ensureRunways, loadAirports } from './data/airports.ts'
+import { stabilizeRows } from './core/stableRows.ts'
 import { watchTrack } from './data/track.ts'
 import { createTraffic, type TrafficHandle } from './data/traffic.ts'
 import { createFlightScene, mapAttribution } from './scene'
@@ -37,9 +38,46 @@ import './ui/panels.css'
 
 const STORE_KEY = 'tracon3d.airport'
 const AIRSPACE_KEY = 'tracon3d.airspace'
+function storedFlag(key: string, dflt = true): boolean {
+  try {
+    const v = localStorage.getItem(key)
+    return v === null ? dflt : v !== '0'
+  } catch {
+    return dflt
+  }
+}
+function saveFlag(key: string, on: boolean): void {
+  try {
+    localStorage.setItem(key, on ? '1' : '0')
+  } catch {
+    /* ignore */
+  }
+}
 const RADAR_KEY = 'tracon3d.radar'
 const RADAR_NONE: RadarStatus = { state: 'off', available: false, site: '', timeMs: 0 }
 const AIRSPACE_OFF: AirspaceStatus = { state: 'off', attribution: '', note: '' }
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+/** Airport index + the start airport's runway shards, 3 tries with backoff (1 s, 2 s). */
+async function loadStart(
+  isDead: () => boolean,
+): Promise<{ list: Airport[]; start: Airport | null }> {
+  let err: unknown
+  for (let i = 0; i < 3; i++) {
+    if (i) await sleep(1000 * i)
+    if (isDead()) throw new Error('cancelled')
+    try {
+      const list = await loadAirports()
+      const start = initialAirport(list) ?? null
+      if (start) await ensureRunways(start)
+      return { list, start }
+    } catch (e) {
+      err = e
+    }
+  }
+  throw err
+}
 
 function initialAirport(list: Airport[]): Airport | undefined {
   const find = (c: string | null) => {
@@ -66,6 +104,9 @@ export function App() {
   const airportsRef = useRef<Airport[]>([])
   airportsRef.current = airports
   const [airport, setAirport] = useState<Airport | null>(null)
+  const [loadFailed, setLoadFailed] = useState(false)
+  const [loadTry, setLoadTry] = useState(0)
+  const pickToken = useRef(0)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [follow, setFollow] = useState(false)
   const [trackInfo, setTrackInfo] = useState<{ id: string; start: number | null } | null>(null)
@@ -124,6 +165,12 @@ export function App() {
   useEffect(() => {
     void loadLogoIndex()
   }, [])
+  const [trailsOn, setTrailsOn] = useState(() => storedFlag('tracon3d.trails'))
+  // Default off: parked/taxiing traffic is neutral grey (selected/hovered ones are still coloured).
+  const [groundColorOn, setGroundColorOn] = useState(() =>
+    storedFlag('tracon3d.groundColor', false),
+  )
+  const [tagsOn, setTagsOn] = useState(() => storedFlag('tracon3d.tags'))
   // The scene persists this itself (same key); App mirrors it for the button.
   const [lightsOn, setLightsOn] = useState(() => {
     try {
@@ -163,17 +210,22 @@ export function App() {
 
   useEffect(() => {
     let dead = false
-    loadAirports()
-      .then((list) => {
+    setLoadFailed(false)
+    loadStart(() => dead)
+      .then(({ list, start }) => {
         if (dead) return
         setAirports(list)
-        setAirport(initialAirport(list) ?? null)
+        setAirport(start)
       })
-      .catch(() => setStatus('offline'))
+      .catch(() => {
+        if (dead) return
+        setStatus('offline')
+        setLoadFailed(true)
+      })
     return () => {
       dead = true
     }
-  }, [])
+  }, [loadTry])
 
   // Airport change: new traffic source, scene rebuild, URL + storage.
   useEffect(() => {
@@ -194,7 +246,7 @@ export function App() {
     })
     scene?.setAirport(airport, nearbyAirports(airportsRef.current, airport))
     scene?.setTraffic(traffic)
-    setAircraft(traffic.snapshot(Date.now()))
+    setAircraft((prev) => stabilizeRows(prev, traffic.snapshot(Date.now())))
     const url = new URL(location.href)
     url.searchParams.set('apt', airport.icao)
     history.replaceState(null, '', url)
@@ -216,7 +268,7 @@ export function App() {
       const t = trafficRef.current
       if (!t || document.hidden) return
       const list = t.snapshot(Date.now())
-      setAircraft(list)
+      setAircraft((prev) => stabilizeRows(prev, list))
       setSelectedId((id) => (id && !list.some((a) => a.id === id) ? null : id))
     }
     const id = setInterval(tick, 500)
@@ -294,6 +346,18 @@ export function App() {
   useEffect(() => sceneRef.current?.setTerrain(terrainOn), [terrainOn])
   useEffect(() => sceneRef.current?.setLogos(logosOn), [logosOn])
   useEffect(() => sceneRef.current?.setLights(lightsOn), [lightsOn])
+  useEffect(() => {
+    sceneRef.current?.setTrails(trailsOn)
+    saveFlag('tracon3d.trails', trailsOn)
+  }, [trailsOn])
+  useEffect(() => {
+    sceneRef.current?.setGroundColor(groundColorOn)
+    saveFlag('tracon3d.groundColor', groundColorOn)
+  }, [groundColorOn])
+  useEffect(() => {
+    sceneRef.current?.setTags(tagsOn)
+    saveFlag('tracon3d.tags', tagsOn)
+  }, [tagsOn])
   useEffect(() => sceneRef.current?.setVerticalScale(vscale), [vscale])
   // Real track history for the selected aircraft (refetched every 60 s while selected).
   useEffect(() => {
@@ -315,7 +379,13 @@ export function App() {
   const pickAirport = useCallback((a: Airport) => {
     setSelectedId(null)
     setFollow(false)
-    setAirport(a)
+    // Runways for it and its neighbours load first; a failed shard falls back to the generic layout.
+    const token = ++pickToken.current
+    void ensureRunways(a)
+      .catch(() => undefined)
+      .then(() => {
+        if (pickToken.current === token) setAirport(a)
+      })
   }, [])
   const onListSelect = useCallback((id: string | null) => {
     setSelectedId(id)
@@ -354,11 +424,18 @@ export function App() {
         onRadarOpacity={setRadarOpacity}
         radarStyle={radarStyle}
         onRadarStyle={setRadarStyle}
+        trailsOn={trailsOn}
+        tagsOn={tagsOn}
+        onTrails={setTrailsOn}
+        onTags={setTagsOn}
+        groundColorOn={groundColorOn}
+        onGroundColor={setGroundColorOn}
       />
       <TrafficList
         aircraft={visible}
         airport={airport}
         total={aircraft.length}
+        status={status}
         selectedId={selectedId}
         onSelect={onListSelect}
       />
@@ -385,6 +462,14 @@ export function App() {
         vscale={vscale}
         onVscale={setVscale}
       />
+      {loadFailed && (
+        <div className="load-error panel" role="alert">
+          <span>Couldn’t load the airport list.</span>
+          <button type="button" onClick={() => setLoadTry((n) => n + 1)}>
+            Retry
+          </button>
+        </div>
+      )}
       <Attribution text={attribution} />
     </div>
   )

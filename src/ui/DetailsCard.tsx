@@ -60,69 +60,71 @@ export function DetailsCard({
   ]
   return (
     <section className="panel details">
-      <div className="d-head">
+      <div className="d-body">
+        <div className="d-head">
+          <div>
+            <div className="d-cs">
+              <AirlineLogo callsign={callsignOf(a)} size={22} /> {callsignOf(a)}
+            </div>
+            <div className="d-sub">
+              {dash(a.airline)} · {dash(a.typeCode)}
+            </div>
+          </div>
+          <button className="x" onClick={onClose} aria-label="Close">
+            ✕
+          </button>
+        </div>
+        {d?.photo && (
+          <figure className="d-photo">
+            <img src={d.photo.src} alt={callsignOf(a)} loading="lazy" />
+            <figcaption>
+              <a href={d.photo.link} target="_blank" rel="noopener noreferrer">
+                {d.photo.credit}
+              </a>
+            </figcaption>
+          </figure>
+        )}
+        {(d?.fullType || owner) && (
+          <div className="d-type">
+            {d?.fullType && <b>{d.fullType}</b>}
+            {owner && <span>Operated by {owner}</span>}
+          </div>
+        )}
         <div>
-          <div className="d-cs">
-            <AirlineLogo callsign={callsignOf(a)} size={22} /> {callsignOf(a)}
+          <div className="d-route">
+            <span>{dash(a.origin)}</span>
+            <span>{dash(a.dest)}</span>
           </div>
-          <div className="d-sub">
-            {dash(a.airline)} · {dash(a.typeCode)}
+          <div className="bar">
+            <i style={{ width: `${pct}%`, background: color }} />
+            <svg
+              className="bar-plane"
+              style={{ left: `clamp(8px, ${pct}%, calc(100% - 8px))`, color }}
+              viewBox="0 0 24 24"
+              aria-hidden
+            >
+              <path
+                fill="currentColor"
+                d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z"
+                transform="rotate(90 12 12)"
+              />
+            </svg>
           </div>
         </div>
-        <button className="x" onClick={onClose} aria-label="Close">
-          ✕
-        </button>
-      </div>
-      {d?.photo && (
-        <figure className="d-photo">
-          <img src={d.photo.src} alt={callsignOf(a)} loading="lazy" />
-          <figcaption>
-            <a href={d.photo.link} target="_blank" rel="noopener noreferrer">
-              {d.photo.credit}
-            </a>
-          </figcaption>
-        </figure>
-      )}
-      {(d?.fullType || owner) && (
-        <div className="d-type">
-          {d?.fullType && <b>{d.fullType}</b>}
-          {owner && <span>Operated by {owner}</span>}
+        <div className="stats">
+          {stats.map(([k, v, c]) => (
+            <div key={k}>
+              <span className="label">{k}</span>
+              <b style={c ? { color: c } : undefined}>{v}</b>
+            </div>
+          ))}
         </div>
-      )}
-      <div>
-        <div className="d-route">
-          <span>{dash(a.origin)}</span>
-          <span>{dash(a.dest)}</span>
-        </div>
-        <div className="bar">
-          <i style={{ width: `${pct}%`, background: color }} />
-          <svg
-            className="bar-plane"
-            style={{ left: `clamp(8px, ${pct}%, calc(100% - 8px))`, color }}
-            viewBox="0 0 24 24"
-            aria-hidden
-          >
-            <path
-              fill="currentColor"
-              d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z"
-              transform="rotate(90 12 12)"
-            />
-          </svg>
-        </div>
-      </div>
-      <div className="stats">
-        {stats.map(([k, v, c]) => (
-          <div key={k}>
-            <span className="label">{k}</span>
-            <b style={c ? { color: c } : undefined}>{v}</b>
+        {trackStart !== undefined && (
+          <div className="track-note">
+            {trackStart === null ? 'TRACK · unavailable' : `TRACK · since ${utcHm(trackStart)} UTC`}
           </div>
-        ))}
+        )}
       </div>
-      {trackStart !== undefined && (
-        <div className="track-note">
-          {trackStart === null ? 'TRACK · unavailable' : `TRACK · since ${utcHm(trackStart)} UTC`}
-        </div>
-      )}
       <button className={'follow' + (follow ? ' on' : '')} onClick={() => onFollow(!follow)}>
         {follow ? 'FOLLOWING · CLICK TO RELEASE' : 'FOLLOW WITH CAMERA'}
       </button>

@@ -94,7 +94,7 @@ describe('mapAdsbAircraft', () => {
   it('mapAdsbStates filters to the bbox and tags the source', () => {
     const b = mapAdsbStates({ now: 5000, ac: [ac(), ac({ hex: 'aaaaaa', lat: 10 })] }, BBOX, 0)
     expect(b.states).toHaveLength(1)
-    expect(b).toMatchObject({ time: 5, pollMs: 5000, source: 'adsblol' })
+    expect(b).toMatchObject({ time: 5, pollMs: 8000, source: 'adsblol' })
   })
 })
 
@@ -214,7 +214,33 @@ describe('trace client', () => {
     expect(f).toHaveBeenCalledTimes(2)
     t = 61_000
     await c.getTrack('c05edd')
-    expect(f).toHaveBeenCalledTimes(4)
+    // Refresh fetches only trace_recent, not trace_full again.
+    expect(f).toHaveBeenCalledTimes(3)
+    expect(f.mock.calls[2][0]).toContain('trace_recent_c05edd')
+    t = 11 * 60_000
+    await c.getTrack('c05edd')
+    expect(f.mock.calls[3][0]).toContain('trace_full_c05edd')
+    expect(f).toHaveBeenCalledTimes(5)
+  })
+  it('incremental refresh appends newer recent points to the kept full trace', async () => {
+    let t = 0
+    const full = { timestamp: T0, trace: [pt(0, 1000), pt(100, 2000)] }
+    const recents = [
+      { timestamp: T0 + 100, trace: [pt(0, 2000), pt(10, 2100)] },
+      { timestamp: T0 + 110, trace: [pt(0, 2100), pt(10, 2200), pt(20, 2300)] },
+    ]
+    let n = 0
+    const f = vi.fn(async (u: string) =>
+      ok(u.includes('trace_full') ? full : recents[Math.min(n++, recents.length - 1)]),
+    )
+    const c = createTraceClient({ fetch: f, now: () => t })
+    const a = await c.getTrack('c05edd')
+    expect(a.body).toMatchObject({ path: expect.any(Array) })
+    t = 61_000
+    const b = await c.getTrack('c05edd')
+    const alt = (r: typeof b) => (r.body as { path: { altFt: number }[] }).path.map((p) => p.altFt)
+    expect(alt(a)).toEqual([1000, 2000, 2100])
+    expect(alt(b)).toEqual([1000, 2000, 2100, 2200, 2300])
   })
   it('404 gives an empty path; 500 on full falls back to recent', async () => {
     const c = createTraceClient({ fetch: async () => new Response('', { status: 404 }) })

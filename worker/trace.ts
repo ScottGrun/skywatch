@@ -10,15 +10,11 @@ const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFin
 
 type P = TrackPoint & { newLeg: boolean }
 
-/**
- * Parse a readsb trace file ({timestamp, trace: [[secAfter, lat, lon, alt|"ground", gs, track,
- * flags, ...]]}) into the last flight: split on gaps > 20 min or leg-start flags, then take the
- * last airborne run plus the ground point before it (takeoff) and after it (landing).
- */
-export function parseTrace(icao24: string, raw: unknown): TrackBody {
+/** Valid rows of a readsb trace file as absolute-time points. */
+export function extractPoints(raw: unknown): P[] {
   const o = (raw ?? {}) as { timestamp?: unknown; trace?: unknown }
-  if (!isNum(o.timestamp) || !Array.isArray(o.trace)) return emptyTrack(icao24)
   const pts: P[] = []
+  if (!isNum(o.timestamp) || !Array.isArray(o.trace)) return pts
   for (const w of o.trace as unknown[][]) {
     if (!Array.isArray(w) || !isNum(w[0]) || !isNum(w[1]) || !isNum(w[2])) continue
     const ground = w[3] === 'ground'
@@ -31,12 +27,27 @@ export function parseTrace(icao24: string, raw: unknown): TrackBody {
       newLeg: isNum(w[6]) && (w[6] & 2) !== 0,
     })
   }
-  // Last continuous segment.
+  return pts
+}
+
+/** The last continuous segment: split on gaps > 20 min or leg-start flags. */
+export function lastSegment(pts: P[]): P[] {
   let start = 0
   for (let i = 1; i < pts.length; i++)
     if (pts[i].t - pts[i - 1].t > GAP_S || pts[i].newLeg) start = i
-  const seg = pts.slice(start)
-  // Last airborne run.
+  return start ? pts.slice(start) : pts
+}
+
+/** Append points of `recent` newer than the last of `base`. */
+export function appendNewer(base: P[], recent: P[]): P[] {
+  const lastT = base.length ? base[base.length - 1].t : -Infinity
+  const extra = recent.filter((p) => p.t > lastT)
+  return extra.length ? base.concat(extra) : base
+}
+
+/** Last airborne run plus the ground point before (takeoff) and after (landing), decimated. */
+export function buildTrack(icao24: string, pts: P[]): TrackBody {
+  const seg = lastSegment(pts)
   let end = seg.length - 1
   while (end >= 0 && seg[end].onGround) end--
   if (end < 0) return emptyTrack(icao24)
@@ -53,6 +64,11 @@ export function parseTrace(icao24: string, raw: unknown): TrackBody {
   }
   if (path.length < 2) return emptyTrack(icao24)
   return { icao24, startTime: path[0].t, endTime: path[path.length - 1].t, path }
+}
+
+/** Parse a readsb trace file ({timestamp, trace: [[secAfter, lat, lon, alt|"ground", gs, track, flags, ...]]}) into the last flight. */
+export function parseTrace(icao24: string, raw: unknown): TrackBody {
+  return buildTrack(icao24, extractPoints(raw))
 }
 
 type Raw = { timestamp?: unknown; trace?: unknown }
@@ -80,9 +96,17 @@ export interface TraceResult {
   body: TrackBody | { error: string }
 }
 
+const BASE_TTL_MS = 10 * 60_000
+const MAX_BASE = 60
+
 export function createTraceClient(opts: { fetch: FetchFn; now?: () => number }) {
   const now = opts.now ?? Date.now
   const cache = new TtlCache<TrackBody>(60_000, 100)
+  /**
+   * Last segment of trace_full per hex, kept ~10 min. Refreshes then fetch only the small
+   * trace_recent file (~15 KB vs 0.2-0.7 MB) and append its newer points.
+   */
+  const bases = new Map<string, { pts: P[]; at: number }>()
   const inflight = new Map<string, Promise<TraceResult>>()
   let backoffUntil = 0
 
@@ -92,6 +116,12 @@ export function createTraceClient(opts: { fetch: FetchFn; now?: () => number }) 
       signal: AbortSignal.timeout(8000),
     })
 
+  const remember = (icao24: string, pts: P[], at: number) => {
+    bases.delete(icao24)
+    bases.set(icao24, { pts, at })
+    if (bases.size > MAX_BASE) bases.delete(bases.keys().next().value as string)
+  }
+
   async function load(icao24: string): Promise<TraceResult> {
     if (now() < backoffUntil) {
       const old = cache.peek(icao24)
@@ -100,6 +130,20 @@ export function createTraceClient(opts: { fetch: FetchFn; now?: () => number }) 
         : { status: 503, body: { error: 'rate limited, no cached data' } }
     }
     try {
+      const base = bases.get(icao24)
+      if (base && now() - base.at < BASE_TTL_MS) {
+        // Incremental refresh: only trace_recent.
+        const rec = await get(icao24, 'recent').catch(() => null)
+        let pts = base.pts
+        if (rec?.status === 429) backoffUntil = now() + 30_000
+        else if (rec?.ok) {
+          pts = lastSegment(appendNewer(pts, extractPoints(await rec.json().catch(() => null))))
+          remember(icao24, pts, base.at)
+        }
+        const body = buildTrack(icao24, pts)
+        cache.set(icao24, body, now())
+        return { status: 200, body }
+      }
       let res = await get(icao24, 'full')
       if (res.status === 404) {
         const body = emptyTrack(icao24)
@@ -116,13 +160,14 @@ export function createTraceClient(opts: { fetch: FetchFn; now?: () => number }) 
         res = await get(icao24, 'recent')
       }
       if (!res.ok) return { status: 502, body: { error: `upstream ${res.status}` } }
-      const main = await res.json()
-      let merged = main
+      let pts = extractPoints(await res.json())
       if (isFull) {
         const rec = await get(icao24, 'recent').catch(() => null)
-        if (rec?.ok) merged = mergeTraces(main, await rec.json().catch(() => null))
+        if (rec?.ok) pts = appendNewer(pts, extractPoints(await rec.json().catch(() => null)))
+        pts = lastSegment(pts)
+        remember(icao24, pts, now())
       }
-      const body = parseTrace(icao24, merged)
+      const body = buildTrack(icao24, pts)
       cache.set(icao24, body, now())
       return { status: 200, body }
     } catch {

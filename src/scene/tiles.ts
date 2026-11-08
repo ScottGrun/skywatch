@@ -5,6 +5,8 @@ import { TILE_FAR_DROP, TILE_R, TILE_R_FAR, TILE_ZOOM, TILE_ZOOM_FAR } from './c
 import { PALETTES } from './theme'
 import { selectRings } from './lodRings'
 import { buildLodRing, type RingStats } from './ringBuild'
+import { nextFrame } from './frameYield'
+import { TileCuller } from './tileCull'
 import { createTileLoader, type TileSlot } from './tileLoader'
 import { applyRadialFog } from './radialFog'
 import { runwayGeoms } from './runways'
@@ -48,7 +50,7 @@ function tintFor(t: Theme): readonly [number, number, number] {
 /** Mesh subdivisions per tile side (detailed ring / outer ring). */
 export const SEGS_INNER = 48
 export const SEGS_OUTER = 24
-const BATCH_MS = 8
+const BATCH_MS = 5
 /** Outer ring stops this far inside the detailed ring's edge so they overlap (hides seams). */
 const HOLE_INSET_KM = 0.3
 
@@ -60,6 +62,8 @@ export function mapAttribution(): string {
 export interface TilesStats {
   /** Swap the basemap (and ground color) to another theme in place. */
   setTheme(t: Theme): void
+  /** Per frame: hide tiles wholly inside the opaque fog. */
+  cull(): void
   triangles: number
   /** ms from setAirport to terrain geometry complete (set when done). */
   terrainMs: number | null
@@ -80,12 +84,14 @@ export function buildTiles(
   extraSegs: readonly Seg[] = [],
 ): TilesStats {
   const slots: TileSlot[] = []
-  const ringStats: RingStats = { slots: [], count: 0, triangles: 0 }
+  const culler = new TileCuller()
+  const ringStats: RingStats = { slots: [], count: 0, triangles: 0, culler }
   let curTheme = theme
   const tiles = createTileLoader(token, maxAniso, styleFor, tintFor, markMapboxDown)
   const stats: TilesStats = {
     triangles: 0,
     terrainMs: null,
+    cull: () => culler.update(),
     setTheme(t) {
       curTheme = t
       base.material.color.setHex(PALETTES[t].bg)
@@ -136,6 +142,7 @@ export function buildTiles(
         const spec: TileSpec = { ap, z, tx, ty, segs, dropY }
         const mesh = new THREE.Mesh(buildTileGeometry({ ...spec, segs: 1 }), mat)
         group.add(mesh)
+        culler.add(mesh)
         jobs.push({ mesh, spec, d: Math.hypot(tx - cx, ty - cy) * 2 ** (10 - z) })
         const slot: TileSlot = { mat, z, x: wx, y: ty, ver: 0 }
         slots.push(slot)
@@ -167,7 +174,7 @@ export function buildTiles(
         j.mesh.geometry = buildTileGeometry(j.spec)
         stats.triangles += j.spec.segs * j.spec.segs * 2 + 8 * j.spec.segs
       } while (i < jobs.length && performance.now() < end)
-      await new Promise((r) => setTimeout(r))
+      await nextFrame()
     }
     if (!alive) return
     stats.terrainMs = performance.now() - t0

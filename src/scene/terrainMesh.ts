@@ -27,6 +27,8 @@ export interface TileSpec {
  * terrain sampler, so neighbouring tiles get identical edge vertices; a downward skirt hides any
  * residual crack. Heights are at x1 vertical scale (the parent group scales Y); `aSlope` holds the x1 ground slopes (dy/de, dy/dn) so the shader shades for the live scale.
  */
+const tmpP = new THREE.Vector3()
+
 export function buildTileGeometry(t: TileSpec): THREE.BufferGeometry {
   const { ap, z, tx, ty, segs, dropY } = t
   const S = segs + 1
@@ -81,6 +83,11 @@ export function buildTileGeometry(t: TileSpec): THREE.BufferGeometry {
   g.setAttribute('uv', new THREE.BufferAttribute(uv, 2))
   g.setAttribute('aSlope', new THREE.BufferAttribute(slope, 2))
   g.setIndex(idx)
+  // Bounds include the flat (terrain-off) height too, so culling is right at any relief blend.
+  g.computeBoundingBox()
+  const bb = g.boundingBox!
+  bb.expandByPoint(tmpP.set((bb.min.x + bb.max.x) / 2, dropY, (bb.min.z + bb.max.z) / 2))
+  bb.getBoundingSphere((g.boundingSphere = new THREE.Sphere()))
   return g
 }
 
@@ -106,7 +113,11 @@ export function createTerrainMaterial(flatY: number, bg: number, fade?: EdgeFade
   mat.polygonOffset = true
   mat.polygonOffsetFactor = fade ? -2 : 1
   mat.polygonOffsetUnits = fade ? -2 : 1
-  if (fade) mat.transparent = true
+  if (fade) {
+    mat.transparent = true
+    // Double-sided only for the skirt; a second blended pass over the same surface would double the draw calls.
+    mat.forceSinglePass = true
+  }
   const hole = new THREE.Vector4(0, 0, 0, 0)
   const fog = mat.onBeforeCompile
   mat.onBeforeCompile = (shader, renderer) => {

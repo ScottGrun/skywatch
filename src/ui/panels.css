@@ -10,8 +10,23 @@
 .traffic.collapsed {
   bottom: auto;
 }
+.traffic.collapsed {
+  width: 240px;
+}
+.traffic.collapsed .traffic-head {
+  padding: 12px 14px 8px;
+}
 .traffic.collapsed .counts {
-  margin-bottom: 16px;
+  display: flex;
+  gap: 1px;
+  margin: 0 14px 12px;
+}
+.traffic.collapsed .counts div {
+  flex: 1;
+  padding: 6px 10px;
+}
+.traffic.collapsed .counts b {
+  font-size: 14px;
 }
 .traffic-head {
   width: 100%;
@@ -94,6 +109,7 @@
 }
 /* details */
 .details {
+  --legend-h: 260px; /* keep >= rendered legend height */
   top: 150px;
   right: 20px;
   width: 320px;
@@ -102,6 +118,19 @@
   flex-direction: column;
   gap: 18px;
   background: var(--panel-details);
+  /* Never reach the legend (bottom-right, ~LEGEND_H tall): body scrolls, Follow stays pinned. */
+  max-height: calc(100vh - 150px - var(--legend-h) - 40px);
+}
+.d-body {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.d-body > * {
+  flex-shrink: 0;
 }
 .d-head {
   display: flex;
@@ -259,6 +288,14 @@
   border-color: var(--strong);
   color: var(--strong);
 }
+.airspace-row button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.airspace-row button:disabled:hover {
+  border-color: var(--ctl);
+  color: var(--body);
+}
 .airspace-row button.on {
   border-color: var(--accent);
   color: var(--accent);
@@ -340,6 +377,7 @@
 }
 .wx-body {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
   padding: 6px 10px 8px;
   box-sizing: border-box;
@@ -360,10 +398,18 @@
   display: flex;
   justify-content: space-between;
   align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+.wx-row .label {
+  flex: none;
 }
 .wx-row b {
   font: 500 11px var(--mono);
   color: var(--strong);
+  min-width: 0;
+  text-align: right;
+  overflow-wrap: anywhere;
 }
 .wx-ramp {
   height: 8px;
@@ -382,6 +428,7 @@
 }
 .wx-style {
   display: inline-flex;
+  flex: none;
   border: 1px solid var(--border);
   border-radius: 3px;
   overflow: hidden;
@@ -400,4 +447,25 @@
 .wx-style button.on {
   color: var(--strong);
   background: var(--border);
+}
+
+.load-error {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  z-index: 20;
+}
+.wx-dd .fl-row[aria-disabled='true'] {
+  opacity: 0.45;
+  cursor: default;
+}
+.wx-none {
+  padding: 4px 15px 8px;
+  font: 500 11px var(--mono);
+  color: var(--body);
 }

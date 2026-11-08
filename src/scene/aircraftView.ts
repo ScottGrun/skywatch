@@ -8,8 +8,6 @@ import { modelNameFor } from './modelMap'
 import type { RotorSpec } from './propGeometry'
 import {
   D2R,
-  DOT_OPACITY,
-  DROP_OPACITY,
   EMISSIVE,
   DETAIL_LIFT,
   FT_TO_KM,
@@ -29,6 +27,7 @@ import {
   SEL_SCALE,
   SEL_SCALE_TAU_S,
 } from './constants'
+import { AircraftMarks } from './aircraftMarks'
 import { AircraftLabel } from './labels'
 import { LiveTrail } from './liveTrail'
 import { SurfaceProbe } from './surface'
@@ -42,6 +41,12 @@ export interface FrameCtx {
   cam: THREE.Vector3
   /** Pixels per km at 1 km distance (viewport height / (2 tan(fov/2))). */
   focalPx: number
+  /** Draw live trails (data keeps accumulating in the feed either way). */
+  trails: boolean
+  /** Draw callsign tags (the selected aircraft's always shows). */
+  tags: boolean
+  /** Colour unselected ground traffic instead of neutral grey. */
+  groundColor: boolean
 }
 
 const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v))
@@ -54,24 +59,19 @@ function footOf(g: THREE.BufferGeometry): number {
 
 /** Geometry/material shared by all views. */
 export interface ViewKit {
-  dropGeo: THREE.BufferGeometry
-  dotGeo: THREE.BufferGeometry
+  marks: AircraftMarks
   trailMat: THREE.LineBasicMaterial
 }
 
 export function createViewKit(): ViewKit {
-  const dropGeo = new THREE.BufferGeometry().setFromPoints([
-    new THREE.Vector3(),
-    new THREE.Vector3(0, 1, 0),
-  ])
-  const dotGeo = new THREE.RingGeometry(0.13, 0.16, 32) // thin, tight ring at the foot of the drop line
-  dotGeo.rotateX(-Math.PI / 2)
-  return { dropGeo, dotGeo, trailMat: new THREE.LineBasicMaterial({ vertexColors: true, fog: false }) }
+  return {
+    marks: new AircraftMarks(),
+    trailMat: new THREE.LineBasicMaterial({ vertexColors: true, fog: false }),
+  }
 }
 
 export function disposeViewKit(k: ViewKit): void {
-  k.dropGeo.dispose()
-  k.dotGeo.dispose()
+  k.marks.dispose()
   k.trailMat.dispose()
 }
 
@@ -107,16 +107,10 @@ export class AircraftView {
     depthWrite: false,
     fog: false,
   })
-  private drop: THREE.Line
-  private dot: THREE.Mesh
+  private marks: AircraftMarks
+  /** Slot in the shared drop-line / ring buffers. */
+  private slot: number
   private trail: LiveTrail
-  private dropMat = new THREE.LineBasicMaterial({ transparent: true, opacity: DROP_OPACITY, fog: false })
-  private dotMat = new THREE.MeshBasicMaterial({
-    transparent: true,
-    opacity: DOT_OPACITY,
-    side: THREE.DoubleSide,
-    fog: false,
-  })
   private cls: AircraftClass | null = null
   private type = ''
   private modelName: string | null = null
@@ -136,12 +130,15 @@ export class AircraftView {
     this.mesh = new THREE.Mesh(aircraftGeometry('narrow'), this.mat)
     this.body.rotation.order = 'YXZ'
     this.body.add(this.mesh)
-    this.drop = new THREE.Line(kit.dropGeo, this.dropMat)
-    this.drop.frustumCulled = false
-    this.dot = new THREE.Mesh(kit.dotGeo, this.dotMat)
+    this.marks = kit.marks
+    this.slot = kit.marks.alloc()
     this.trail = new LiveTrail(kit.trailMat)
-    this.root.add(this.body, this.drop, this.dot, this.trail.line)
+    this.root.add(this.body, this.trail.line)
     this.label = new AircraftLabel(overlay)
+  }
+
+  hideMarks(): void {
+    this.marks.hide(this.slot)
   }
 
   /** Force the next update to re-apply colors (theme change). */
@@ -232,16 +229,15 @@ export class AircraftView {
     this.x = x
     this.y = y
     this.z = z
-    const raw = muted ? GROUND_COLOR : rampHex(ac.altFt)
+    const grey = muted && !c.groundColor
+    const raw = grey ? GROUND_COLOR : rampHex(ac.altFt)
     const col = shadeHex(raw, pal().shade)
     if (col !== this.colorHex) {
       this.colorHex = col
       this.mat.color.setHex(col)
       this.mat.emissive.setHex(col)
-      this.mat.emissiveIntensity = muted ? GROUND_EMISSIVE : EMISSIVE
+      this.mat.emissiveIntensity = grey ? GROUND_EMISSIVE : EMISSIVE
       this.rotorMat.color.setHex(col)
-      this.dropMat.color.setHex(col)
-      this.dotMat.color.setHex(col)
     }
 
     this.camDist = Math.hypot(c.cam.x - x, c.cam.y - y, c.cam.z - z)
@@ -284,23 +280,26 @@ export class AircraftView {
     }
     this.body.rotation.set(clamp(climb, -PITCH_MAX, PITCH_MAX), -ac.trackDeg * D2R, this.bank)
 
-    this.drop.position.set(x, g, z)
-    this.drop.scale.y = Math.max(y - g, 1e-4)
-    this.drop.visible = y - g > 0.05 && !ac.onGround
-    this.dot.visible = !ac.onGround || selected
-    this.dot.position.set(x, g + 0.08, z)
-    this.dot.scale.setScalar(ringLen * 0.8)
-    this.dotMat.opacity = DOT_OPACITY
+    tmpC.setHex(col)
+    this.marks.set(
+      this.slot,
+      x,
+      g,
+      z,
+      y - g > 0.05 && !ac.onGround ? Math.max(y - g, 1e-4) : 0,
+      !ac.onGround || selected ? ringLen * 0.8 : 0,
+      tmpC,
+    )
 
-    this.trail.line.visible = !ac.onGround
+    const showTrail = c.trails && !ac.onGround
+    this.trail.line.visible = showTrail
     // Trail Y is stored at x1 and scaled by the object, so old vertices follow the vertical scale.
     this.trail.line.scale.y = vscale.k
-    if (!ac.onGround)
-      this.trail.update(ac.fixes, seed, c.elevFt, x, y / vscale.k, z, tmpC.setHex(col))
+    if (showTrail) this.trail.update(ac.fixes, seed, c.elevFt, x, y / vscale.k, z, tmpC.setHex(col))
 
     const arrow = ac.vsFpm > 300 ? '↑' : ac.vsFpm < -300 ? '↓' : ''
     const fl = String(Math.round(Math.max(0, ac.altFt) / 100)).padStart(3, '0') + arrow
-    if (this.showLabel)
+    if (this.showLabel && (c.tags || selected))
       this.label.set(ac.callsign || ac.id.toUpperCase(), fl, hexCss(raw), selected)
   }
 
@@ -308,8 +307,7 @@ export class AircraftView {
     this.trail.dispose()
     this.mat.dispose()
     this.rotorMat.dispose()
-    this.dropMat.dispose()
-    this.dotMat.dispose()
+    this.marks.free(this.slot)
     this.label.remove()
   }
 }
@@ -326,6 +324,12 @@ export class ViewPool {
   constructor(scene: THREE.Scene, overlay: HTMLElement) {
     this.scene = scene
     this.overlay = overlay
+    scene.add(this.kit.marks.lines, this.kit.marks.dots)
+  }
+
+  /** Upload drop-line / ring changes; call once per frame after all views updated. */
+  flush(): void {
+    this.kit.marks.flush()
   }
 
   acquire(ac: Aircraft, nowMs: number): AircraftView {
@@ -342,6 +346,7 @@ export class ViewPool {
     this.active.delete(id)
     this.scene.remove(v.root)
     v.label.place(null)
+    v.hideMarks()
     this.free.push(v)
   }
 
@@ -357,6 +362,7 @@ export class ViewPool {
     this.clear()
     this.free.forEach((v) => v.dispose())
     this.free = []
+    this.scene.remove(this.kit.marks.lines, this.kit.marks.dots)
     disposeViewKit(this.kit)
   }
 }

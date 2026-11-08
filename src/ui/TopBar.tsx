@@ -3,6 +3,7 @@ import { ThemeToggle } from './ThemeToggle.tsx'
 import type { FilterState } from '../core/filter.ts'
 import { AirportSearch } from './AirportSearch.tsx'
 import { FilterDropdown } from './FilterDropdown.tsx'
+import { LayersDropdown } from './LayersDropdown.tsx'
 import { WeatherDropdown } from './WeatherDropdown.tsx'
 import { Clock } from './Clock.tsx'
 import { LiveStatus } from './LiveStatus.tsx'
@@ -28,6 +29,12 @@ interface Props {
   onRadarOpacity: (a: number) => void
   radarStyle: RadarStyle
   onRadarStyle: (s: RadarStyle) => void
+  trailsOn: boolean
+  tagsOn: boolean
+  onTrails: (on: boolean) => void
+  onTags: (on: boolean) => void
+  groundColorOn: boolean
+  onGroundColor: (on: boolean) => void
 }
 
 export function TopBar({
@@ -49,6 +56,12 @@ export function TopBar({
   onRadarOpacity,
   radarStyle,
   onRadarStyle,
+  trailsOn,
+  tagsOn,
+  onTrails,
+  onTags,
+  groundColorOn,
+  onGroundColor,
 }: Props) {
   return (
     <header className="topbar">
@@ -67,6 +80,14 @@ export function TopBar({
           onOpacity={onRadarOpacity}
           style={radarStyle}
           onStyle={onRadarStyle}
+        />
+        <LayersDropdown
+          trailsOn={trailsOn}
+          tagsOn={tagsOn}
+          groundColorOn={groundColorOn}
+          onTrails={onTrails}
+          onTags={onTags}
+          onGroundColor={onGroundColor}
         />
       </div>
       <div className="topbar-right">

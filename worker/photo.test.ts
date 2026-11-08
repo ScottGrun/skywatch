@@ -67,3 +67,14 @@ describe('adsbdb type and photo fields', () => {
     expect(m.photoThumb).toMatch(/^https:/)
   })
 })
+
+describe('photo lookup transient flag', () => {
+  it('flags upstream failures but not genuine misses', async () => {
+    const bad = createPhotoClient({ fetch: async () => new Response('', { status: 500 }) })
+    expect((await bad.lookup('000001')).transient).toBe(true)
+    const none = createPhotoClient({
+      fetch: async () => new Response(JSON.stringify({ photos: [] })),
+    })
+    expect(await none.lookup('000002')).toEqual({ photo: null, transient: false })
+  })
+})

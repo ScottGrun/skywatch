@@ -1,11 +1,15 @@
 // Usage: node scripts/build-airports.ts
-// Downloads OurAirports CSVs and writes public/data/airports.json (large + medium airports,
-// plus small airports with an IATA code and scheduled service).
-import { mkdirSync, writeFileSync } from 'node:fs'
+// Downloads OurAirports CSVs and writes compact files to src/data/baked/ (large + medium airports,
+// plus small airports with an IATA code and scheduled service):
+//   airports-index.json   search index, one array per airport (no runways), loaded at startup
+//   rw-<lat>_<lon>.json   runways of the airports in one 10 degree cell, fetched on demand
+// Vite hashes them (see src/data/airports.ts), so they cache immutably.
+import { mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseCsvRecords } from '../src/core/csv.ts'
 import { bearingDeg } from '../src/core/geo.ts'
+import { cellKey, packRunway, type AirportRow } from '../src/data/airportCodec.ts'
 import type { Airport, Runway } from '../src/types.ts'
 
 const BASE = 'https://davidmegginson.github.io/ourairports-data'
@@ -81,6 +85,8 @@ export function buildAirports(airportsCsv: string, runwaysCsv: string): Airport[
         lat: r5(lat),
         lon: r5(lon),
         elevationFt: Math.round(numOrNull(a.elevation_ft) ?? 0),
+        size:
+          a.type === 'large_airport' ? 'large' : a.type === 'medium_airport' ? 'medium' : 'small',
         runways: byIdent.get(a.ident) ?? [],
       },
     ])
@@ -102,12 +108,40 @@ if (import.meta.main) {
     download('runways.csv'),
   ])
   const airports = buildAirports(airportsCsv, runwaysCsv)
-  const file = resolve(dirname(fileURLToPath(import.meta.url)), '../public/data/airports.json')
-  mkdirSync(dirname(file), { recursive: true })
-  const json = JSON.stringify(airports)
-  writeFileSync(file, json)
-  const withRw = airports.filter((a) => a.runways.length > 0).length
+  const dir = resolve(dirname(fileURLToPath(import.meta.url)), '../src/data/baked')
+  mkdirSync(dir, { recursive: true })
+  for (const f of readdirSync(dir))
+    if (/^(airports-index|rw-.*)\.json$/.test(f)) rmSync(resolve(dir, f))
+  const SIZE = { large: 0, medium: 1, small: 2 } as const
+  const rows: AirportRow[] = airports.map((a) => [
+    a.icao,
+    a.iata,
+    a.name,
+    a.city,
+    a.country,
+    a.lat,
+    a.lon,
+    a.elevationFt,
+    SIZE[a.size ?? 'small'],
+  ])
+  const index = JSON.stringify(rows)
+  writeFileSync(resolve(dir, 'airports-index.json'), index)
+  const cells = new Map<string, Record<string, unknown[]>>()
+  for (const a of airports) {
+    if (!a.runways.length) continue
+    const k = cellKey(a.lat, a.lon)
+    const c = cells.get(k) ?? {}
+    c[a.icao] = a.runways.map(packRunway)
+    cells.set(k, c)
+  }
+  let rwBytes = 0
+  for (const [k, c] of cells) {
+    const j = JSON.stringify(c)
+    rwBytes += j.length
+    writeFileSync(resolve(dir, `rw-${k}.json`), j)
+  }
   console.log(
-    `${airports.length} airports (${withRw} with runways) -> ${file} (${(json.length / 1e6).toFixed(2)} MB)`,
+    `${airports.length} airports -> index ${(index.length / 1e3).toFixed(0)} kB, ` +
+      `${cells.size} runway shards ${(rwBytes / 1e3).toFixed(0)} kB total -> ${dir}`,
   )
 }
