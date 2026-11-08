@@ -32,6 +32,8 @@ import {
   SEL_RING_OPACITY,
   SEL_RING_PERIOD_MS,
   SEL_RING_SCALE,
+  SEL_SCALE,
+  SEL_SCALE_TAU_S,
 } from './constants'
 import { AircraftLabel } from './labels'
 import { SurfaceProbe } from './surface'
@@ -136,6 +138,7 @@ export class AircraftView {
   private prevMs = 0
   private rate = 0
   private bank = 0
+  private selK = 1
   private probe = new SurfaceProbe()
 
   constructor(kit: ViewKit, overlay: HTMLElement) {
@@ -169,6 +172,7 @@ export class AircraftView {
     this.prevMs = nowMs
     this.rate = 0
     this.bank = 0
+    this.selK = 1
     this.colorHex = -1
     this.root.visible = true
   }
@@ -217,7 +221,13 @@ export class AircraftView {
     }
   }
 
-  update(ac: Aircraft, c: FrameCtx, selected: boolean, hovered = false): void {
+  update(
+    ac: Aircraft,
+    c: FrameCtx,
+    selected: boolean,
+    hovered = false,
+    hideTrail = false,
+  ): void {
     this.syncModel(ac)
     const muted = ac.onGround && !selected && !hovered
     this.showLabel = !muted
@@ -251,12 +261,15 @@ export class AircraftView {
     const sc = clamp(this.camDist / SCALE_DIV, SCALE_MIN, SCALE_MAX)
     // Drawn length (km): true size near the camera, exaggerated size far away.
     const minPx = ac.onGround ? MIN_PX_GROUND : MIN_PX_AIR
-    const len = effectiveSize(
+    let len = effectiveSize(
       this.camDist,
       this.trueKm,
       sc * this.size,
       (minPx * this.camDist) / c.focalPx,
     )
+    // Selected aircraft grows a hair, eased so it never pops.
+    this.selK += ((selected ? SEL_SCALE : 1) - this.selK) * (1 - Math.exp(-c.dt / SEL_SCALE_TAU_S))
+    len *= this.selK
     this.scale = len
     // Rings stay readable when the true-size plane is only a few pixels long.
     const ringLen = Math.max(len, this.camDist * RING_MIN_ANGLE)
@@ -298,7 +311,8 @@ export class AircraftView {
       this.dotMat.opacity = DOT_OPACITY
     }
 
-    this.trail.visible = !ac.onGround
+    // A fetched history already includes the live path; drawing both gave a double trail.
+    this.trail.visible = !ac.onGround && !hideTrail
     // Trail Y is stored at x1 and scaled by the object, so old vertices follow the vertical scale.
     this.trail.scale.y = vscale.k
     if (ac.onGround) this.hN = 0

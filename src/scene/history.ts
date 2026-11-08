@@ -3,7 +3,7 @@ import { toLocal, type LatLon } from '../core/geo'
 import { rampHex } from '../core/ramp'
 import type { HistoryPoint } from '../types'
 import type { AircraftView } from './aircraftView'
-import { FT_TO_KM } from './constants'
+import { FT_TO_KM, TRAIL_SAMPLE_MS } from './constants'
 import { surfaceY } from './surface'
 import { vscale } from './vertical'
 
@@ -13,8 +13,10 @@ const OLDEST_FADE = 0.45 // brightness at the oldest vertex; 1 at the newest
 export interface HistoryHandle {
   /** Replace the line for the selected aircraft (null clears). */
   set(path: readonly HistoryPoint[] | null, origin: LatLon, elevFt: number): void
-  /** Per frame: appends the aircraft's live position as the final vertex. */
-  update(view: AircraftView | null): void
+  /** True while a fetched history is drawn (the view's own live trail is then hidden). */
+  readonly active: boolean
+  /** Per frame: extends the line with the aircraft's live positions; the last vertex follows it. */
+  update(view: AircraftView | null, nowMs: number): void
   dispose(): void
 }
 
@@ -42,9 +44,13 @@ export function createHistory(scene: THREE.Scene): HistoryHandle {
   scene.add(line)
 
   let n = 0 // history vertices (excluding the live one)
+  let lastSample = 0
   const c = new THREE.Color()
 
   return {
+    get active() {
+      return n > 0
+    },
     set(path, origin, elevFt) {
       n = 0
       if (!path || path.length < 2) {
@@ -70,16 +76,37 @@ export function createHistory(scene: THREE.Scene): HistoryHandle {
         ca[o + 2] = c.b * f
       }
       n = pts.length
+      lastSample = 0
       posA.needsUpdate = true
       colA.needsUpdate = true
     },
-    update(view) {
+    update(view, nowMs) {
       if (!view || n === 0) {
         line.visible = false
         return
       }
       const pa = posA.array as Float32Array
       const ca = colA.array as Float32Array
+      // Bake a live sample into the line now and then so the path stays continuous.
+      if (nowMs - lastSample >= TRAIL_SAMPLE_MS && view.colorHex >= 0) {
+        if (lastSample > 0) {
+          if (n >= HISTORY_MAX_POINTS) {
+            pa.copyWithin(0, 3, n * 3 + 3)
+            ca.copyWithin(0, 3, n * 3 + 3)
+            n--
+          }
+          const b = n * 3
+          pa[b] = view.x
+          pa[b + 1] = view.y / vscale.k
+          pa[b + 2] = view.z
+          c.setHex(view.colorHex)
+          ca[b] = c.r
+          ca[b + 1] = c.g
+          ca[b + 2] = c.b
+          n++
+        }
+        lastSample = nowMs
+      }
       const o = n * 3
       pa[o] = view.x
       pa[o + 1] = view.y / vscale.k
