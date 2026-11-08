@@ -1,6 +1,11 @@
 import * as THREE from 'three'
 import { KM_PER_NM } from '../core/geo'
-import { COMPASS_RADIUS_KM, D2R, RING_LABEL_BEARING, RING_NM } from './constants'
+import {
+  COMPASS_RADIUS_KM,
+  D2R,
+  RING_LABEL_BEARING,
+  RING_NM,
+} from './constants'
 import { applyRadialFog } from './radialFog'
 import { pal } from './theme'
 import { terrainY } from './terrain'

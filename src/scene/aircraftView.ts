@@ -221,7 +221,13 @@ export class AircraftView {
     }
   }
 
-  update(ac: Aircraft, c: FrameCtx, selected: boolean, hovered = false, hideTrail = false): void {
+  update(
+    ac: Aircraft,
+    c: FrameCtx,
+    selected: boolean,
+    hovered = false,
+    hideTrail = false,
+  ): void {
     this.syncModel(ac)
     const muted = ac.onGround && !selected && !hovered
     this.showLabel = !muted

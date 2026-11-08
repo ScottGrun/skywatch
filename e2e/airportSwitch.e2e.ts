@@ -17,11 +17,7 @@ function nextTerrainDone(page: Page): Promise<void> {
 }
 
 async function shoot(page: Page, name: string) {
-  for (const [btn, tag] of [
-    ['OVERVIEW', 'overview'],
-    ['SIDE', 'side'],
-    ['TOP', 'top'],
-  ] as const) {
+  for (const [btn, tag] of [['OVERVIEW', 'overview'], ['SIDE', 'side'], ['TOP', 'top']] as const) {
     await page.getByRole('button', { name: btn }).click()
     await page.waitForTimeout(3_000)
     await page.screenshot({ path: `${SHOTS}/${name}-${tag}.png` })
