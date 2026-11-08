@@ -9,6 +9,11 @@ describe('classScale', () => {
     expect(classScale('piston')).toBeGreaterThanOrEqual(0.5)
     expect(classScale('heli')).toBeGreaterThanOrEqual(0.5)
   })
+  it('keeps spin steps small and survives bad input', () => {
+    expect(advanceSpin(0, 14, 0.1)).toBeLessThan(0.5)
+    expect(advanceSpin(Number.NaN, 14, 0.016)).toBeGreaterThan(0)
+    expect(advanceSpin(1, 14, Number.NaN)).toBe(1)
+  })
   it('wraps spin', () => {
     expect(advanceSpin(6, 10, 1)).toBeLessThan(Math.PI * 2)
   })

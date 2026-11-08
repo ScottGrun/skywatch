@@ -20,9 +20,14 @@ export function modelScale(lengthM: number): number {
   return Math.max(((CLASS_SIZE.narrow ?? 1) * lengthM) / A320_LENGTH_M, CLASS_SIZE_FLOOR)
 }
 
+/** Largest per-frame spin step (rad): a bigger one aliases with the blade symmetry and looks frozen/backwards. */
+const SPIN_STEP_MAX = 0.4
+
 /** Spin angle after dt seconds, wrapped so it never loses float precision. */
 export function advanceSpin(angle: number, rate: number, dt: number): number {
-  return (angle + rate * dt) % (Math.PI * 2)
+  const a = Number.isFinite(angle) ? angle : 0
+  const raw = Math.min(Math.abs(rate * dt), SPIN_STEP_MAX) * Math.sign(rate)
+  return (a + (Number.isFinite(raw) ? raw : 0)) % (Math.PI * 2)
 }
 
 /** True airframe length in km for a class (procedural models). */
