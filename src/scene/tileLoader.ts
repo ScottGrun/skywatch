@@ -29,33 +29,56 @@ export function createTileLoader(
 ) {
   const loader = new THREE.TextureLoader()
   loader.setCrossOrigin('anonymous')
+  const images = new THREE.ImageLoader()
+  images.setCrossOrigin('anonymous')
   let alive = true
+
+  /** Esri: base canvas + its transparent label ("_Reference") layer, composited into one texture. */
+  function loadEsri(url: string, onTex: (t: THREE.Texture) => void, onErr: () => void): void {
+    let base: HTMLImageElement | null = null
+    let ref: HTMLImageElement | null = null
+    let pending = 2
+    const done = () => {
+      if (--pending > 0) return
+      if (!base) return onErr()
+      const c = document.createElement('canvas')
+      c.width = base.naturalWidth || 256
+      c.height = base.naturalHeight || 256
+      const g = c.getContext('2d')!
+      g.drawImage(base, 0, 0, c.width, c.height)
+      if (ref) g.drawImage(ref, 0, 0, c.width, c.height)
+      onTex(new THREE.CanvasTexture(c))
+    }
+    images.load(url, (im) => ((base = im), done()), undefined, done)
+    images.load(url.replace('_Base/', '_Reference/'), (im) => ((ref = im), done()), undefined, done)
+  }
   const api = {
     load(slot: TileSlot, theme: Theme): void {
       const ver = ++slot.ver
       const tk = token()
-      loader.load(
-        tileUrl(slot.z, slot.x, slot.y, tk, styleFor(theme), theme, !slot.lowRes),
-        (tex) => {
-          if (!alive || ver !== slot.ver) {
-            tex.dispose()
-            return
-          }
-          tex.colorSpace = THREE.SRGBColorSpace
-          tex.anisotropy = maxAniso
-          const old = slot.mat.map
-          slot.mat.map = tex
-          slot.mat.color.setRGB(...tintFor(theme))
-          if (!old) slot.mat.needsUpdate = true
-          old?.dispose()
-        },
-        undefined,
-        () => {
-          if (!tk || !alive || ver !== slot.ver) return
-          onMapboxFail()
-          if (!token()) api.load(slot, theme)
-        },
-      )
+      const url = tileUrl(slot.z, slot.x, slot.y, tk, styleFor(theme), theme, !slot.lowRes)
+      const onTex = (tex: THREE.Texture) => {
+        if (!alive || ver !== slot.ver) {
+          tex.dispose()
+          return
+        }
+        tex.colorSpace = THREE.SRGBColorSpace
+        tex.anisotropy = maxAniso
+        const old = slot.mat.map
+        slot.mat.map = tex
+        slot.mat.color.setRGB(...tintFor(theme))
+        if (!old) slot.mat.needsUpdate = true
+        old?.dispose()
+      }
+      if (!tk) {
+        loadEsri(url, onTex, () => {})
+        return
+      }
+      loader.load(url, onTex, undefined, () => {
+        if (!alive || ver !== slot.ver) return
+        onMapboxFail()
+        if (!token()) api.load(slot, theme)
+      })
     },
     dispose(): void {
       alive = false

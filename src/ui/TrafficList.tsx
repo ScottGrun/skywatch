@@ -1,3 +1,4 @@
+import './arrivals.css'
 import { useEffect, useMemo, useState } from 'react'
 import type { Aircraft, Airport } from '../types.ts'
 import { ArrivalsBoard } from './ArrivalsBoard.tsx'
