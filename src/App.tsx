@@ -4,6 +4,7 @@ import type {
   Airport,
   AirspaceStatus,
   RadarStatus,
+  RadarStyle,
   FeedStatus,
   FlightScene,
   Theme,
@@ -100,6 +101,13 @@ export function App() {
       return Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 0.7
     } catch {
       return 0.7
+    }
+  })
+  const [radarStyle, setRadarStyle] = useState<RadarStyle>(() => {
+    try {
+      return localStorage.getItem('tracon3d.radarStyle') === 'volume' ? 'volume' : 'blocks'
+    } catch {
+      return 'blocks'
     }
   })
   const [radar, setRadarStatus] = useState<RadarStatus>(RADAR_NONE)
@@ -267,6 +275,14 @@ export function App() {
     }
   }, [radarOpacity])
   useEffect(() => {
+    sceneRef.current?.setRadarStyle(radarStyle)
+    try {
+      localStorage.setItem('tracon3d.radarStyle', radarStyle)
+    } catch {
+      /* ignore */
+    }
+  }, [radarStyle])
+  useEffect(() => {
     applyTheme(theme)
     sceneRef.current?.setTheme(theme)
   }, [theme])
@@ -336,6 +352,8 @@ export function App() {
         radarOpacity={radarOpacity}
         onRadar={onRadar}
         onRadarOpacity={setRadarOpacity}
+        radarStyle={radarStyle}
+        onRadarStyle={setRadarStyle}
       />
       <TrafficList
         aircraft={visible}

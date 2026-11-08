@@ -1,3 +1,4 @@
+import type { BlockData } from '../core/radarBlocks.ts'
 import type { LatLon } from '../core/geo.ts'
 
 export interface RadarJob {
@@ -11,6 +12,10 @@ export interface RadarJob {
 export interface RadarResult {
   id: number
   grid: Uint8Array
+  /** Block-style geometry built from the grid (typed arrays, uploaded as-is). */
+  blocks: BlockData
+  /** Composite (column max) dBZ, nx x ny. */
+  composite: Uint8Array
   /** Site ids, one per merged volume. */
   sites: string[]
   /** Volume scan start, ms since epoch. */

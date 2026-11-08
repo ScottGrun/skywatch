@@ -118,6 +118,9 @@ export interface AirspaceStatus {
   note: string
 }
 
+/** Radar rendering style: raymarched volume or voxel blocks. */
+export type RadarStyle = 'volume' | 'blocks'
+
 export interface RadarStatus {
   state: 'off' | 'loading' | 'decoding' | 'ok' | 'error'
   /** A radar is within range of the selected airport (the toggle is only offered then). */
@@ -150,6 +153,7 @@ export interface FlightScene {
   setRadar(on: boolean): void
   /** Radar volume opacity 0-1 (eased in the shader; no rebuild). */
   setRadarOpacity(a: number): void
+  setRadarStyle(s: RadarStyle): void
   /** Real 3D terrain (default) vs the flat map. Relief animates in/out (~0.6 s); persisted by the scene in localStorage. */
   setTerrain(on: boolean): void
   /** Airline logos on callsign tags (default on; persisted as tracon3d.logos, shared with the UI via src/data/logos). */
