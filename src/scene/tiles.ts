@@ -11,7 +11,29 @@ import { loadTerrain, sceneY, terrainSource, tileBox, type Seg } from './terrain
 import { buildTileGeometry, createTerrainMaterial, type TileSpec } from './terrainMesh'
 import { attributionFor, latToTileY, lonToTileX } from './tileMath'
 
-const token = (): string | undefined => import.meta.env.VITE_MAPBOX_TOKEN || undefined
+// Mapbox tile failures (quota exhausted, bad token, outage) switch the basemap to keyless Esri.
+// Remembered for an hour so later page loads don't burn requests on a dead token.
+const DOWN_KEY = 'tracon3d.mapboxDownUntil'
+const DOWN_MS = 3600_000
+let mapboxDown = (() => {
+  try {
+    return Number(localStorage.getItem(DOWN_KEY) ?? 0) > Date.now()
+  } catch {
+    return false
+  }
+})()
+function markMapboxDown(): void {
+  if (mapboxDown) return
+  mapboxDown = true
+  console.warn('[tiles] Mapbox tiles failed; falling back to Esri')
+  try {
+    localStorage.setItem(DOWN_KEY, String(Date.now() + DOWN_MS))
+  } catch {
+    /* storage unavailable */
+  }
+}
+const token = (): string | undefined =>
+  mapboxDown ? undefined : import.meta.env.VITE_MAPBOX_TOKEN || undefined
 const styleFor = (t: Theme): string | undefined =>
   (t === 'light' ? import.meta.env.VITE_MAPBOX_STYLE_LIGHT : import.meta.env.VITE_MAPBOX_STYLE) ||
   undefined
@@ -59,8 +81,7 @@ export function buildTiles(
   const slots: TileSlot[] = []
   let detail: DetailPatch | null = null
   let curTheme = theme
-  const tk = token()
-  const tiles = createTileLoader(tk, maxAniso, styleFor, tintFor)
+  const tiles = createTileLoader(token, maxAniso, styleFor, tintFor, markMapboxDown)
   const stats: TilesStats = {
     triangles: 0,
     terrainMs: null,
@@ -131,7 +152,7 @@ export function buildTiles(
     bn: g.b.n,
   }))
   segsList.push(...extraSegs)
-  void loadTerrain(ap, segsList, tk, abort.signal).then(async () => {
+  void loadTerrain(ap, segsList, token(), abort.signal).then(async () => {
     if (!alive) return
     const tLoaded = performance.now()
     onTerrain()

@@ -20,19 +20,22 @@ export type TileLoader = ReturnType<typeof createTileLoader>
  * new one has arrived, then swaps and disposes it; stale or late results are discarded.
  */
 export function createTileLoader(
-  token: string | undefined,
+  token: () => string | undefined,
   maxAniso: number,
   styleFor: (t: Theme) => string | undefined,
   tintFor: (t: Theme) => readonly [number, number, number],
+  /** Called when a Mapbox tile fails; the slot is then retried (token() should now be undefined). */
+  onMapboxFail: () => void,
 ) {
   const loader = new THREE.TextureLoader()
   loader.setCrossOrigin('anonymous')
   let alive = true
-  return {
+  const api = {
     load(slot: TileSlot, theme: Theme): void {
       const ver = ++slot.ver
+      const tk = token()
       loader.load(
-        tileUrl(slot.z, slot.x, slot.y, token, styleFor(theme), theme, !slot.lowRes),
+        tileUrl(slot.z, slot.x, slot.y, tk, styleFor(theme), theme, !slot.lowRes),
         (tex) => {
           if (!alive || ver !== slot.ver) {
             tex.dispose()
@@ -46,10 +49,17 @@ export function createTileLoader(
           if (!old) slot.mat.needsUpdate = true
           old?.dispose()
         },
+        undefined,
+        () => {
+          if (!tk || !alive || ver !== slot.ver) return
+          onMapboxFail()
+          if (!token()) api.load(slot, theme)
+        },
       )
     },
     dispose(): void {
       alive = false
     },
   }
+  return api
 }
