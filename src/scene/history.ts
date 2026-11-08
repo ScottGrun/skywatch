@@ -3,20 +3,24 @@ import { toLocal, type LatLon } from '../core/geo'
 import { rampHex } from '../core/ramp'
 import type { HistoryPoint } from '../types'
 import type { AircraftView } from './aircraftView'
-import { FT_TO_KM, TRAIL_SAMPLE_MS } from './constants'
+import { FT_TO_KM } from './constants'
 import { surfaceY } from './surface'
 import { vscale } from './vertical'
 
 export const HISTORY_MAX_POINTS = 1000
 const OLDEST_FADE = 0.45 // brightness at the oldest vertex; 1 at the newest
+const TAIL_POINTS = 4
+const TAIL_GAP_KM = 0.15
 
 export interface HistoryHandle {
   /** Replace the line for the selected aircraft (null clears). */
   set(path: readonly HistoryPoint[] | null, origin: LatLon, elevFt: number): void
-  /** True while a fetched history is drawn (the view's own live trail is then hidden). */
+  /** True while a fetched history is drawn. */
   readonly active: boolean
-  /** Per frame: extends the line with the aircraft's live positions; the last vertex follows it. */
-  update(view: AircraftView | null, nowMs: number): void
+  /** Flat [eKm, nKm, altFt] of the history's last points, or null. The live trail continues from it. */
+  readonly tail: Float64Array | null
+  /** Per frame: shows the line while the selected aircraft is in view. */
+  update(view: AircraftView | null): void
   dispose(): void
 }
 
@@ -29,8 +33,23 @@ export function downsample<T>(items: readonly T[], max: number): T[] {
   return out
 }
 
+/** Last few well-spaced points of the path, oldest first, as flat [eKm, nKm, altFt]. */
+function tailOf(path: readonly HistoryPoint[], origin: LatLon): Float64Array {
+  const out: number[] = []
+  let pe = Infinity
+  let pn = Infinity
+  for (let i = path.length - 1; i >= 0 && out.length < TAIL_POINTS * 3; i--) {
+    const { e, n } = toLocal(origin, path[i].lat, path[i].lon)
+    if (out.length > 0 && Math.hypot(e - pe, n - pn) < TAIL_GAP_KM) continue
+    out.unshift(e, n, path[i].altFt)
+    pe = e
+    pn = n
+  }
+  return Float64Array.from(out)
+}
+
 export function createHistory(scene: THREE.Scene): HistoryHandle {
-  const cap = HISTORY_MAX_POINTS + 1
+  const cap = HISTORY_MAX_POINTS
   const posA = new THREE.BufferAttribute(new Float32Array(cap * 3), 3)
   const colA = new THREE.BufferAttribute(new Float32Array(cap * 3), 3)
   const geo = new THREE.BufferGeometry()
@@ -43,16 +62,20 @@ export function createHistory(scene: THREE.Scene): HistoryHandle {
   line.visible = false
   scene.add(line)
 
-  let n = 0 // history vertices (excluding the live one)
-  let lastSample = 0
+  let n = 0
+  let tail: Float64Array | null = null
   const c = new THREE.Color()
 
   return {
     get active() {
       return n > 0
     },
+    get tail() {
+      return tail
+    },
     set(path, origin, elevFt) {
       n = 0
+      tail = null
       if (!path || path.length < 2) {
         geo.setDrawRange(0, 0)
         line.visible = false
@@ -76,50 +99,16 @@ export function createHistory(scene: THREE.Scene): HistoryHandle {
         ca[o + 2] = c.b * f
       }
       n = pts.length
-      lastSample = 0
+      tail = tailOf(path, origin)
       posA.needsUpdate = true
       colA.needsUpdate = true
     },
-    update(view, nowMs) {
-      if (!view || n === 0) {
-        line.visible = false
-        return
+    update(view) {
+      line.visible = view !== null && n > 0
+      if (line.visible) {
+        geo.setDrawRange(0, n)
+        line.scale.y = vscale.k
       }
-      const pa = posA.array as Float32Array
-      const ca = colA.array as Float32Array
-      // Bake a live sample into the line now and then so the path stays continuous.
-      if (nowMs - lastSample >= TRAIL_SAMPLE_MS && view.colorHex >= 0) {
-        if (lastSample > 0) {
-          if (n >= HISTORY_MAX_POINTS) {
-            pa.copyWithin(0, 3, n * 3 + 3)
-            ca.copyWithin(0, 3, n * 3 + 3)
-            n--
-          }
-          const b = n * 3
-          pa[b] = view.x
-          pa[b + 1] = view.y / vscale.k
-          pa[b + 2] = view.z
-          c.setHex(view.colorHex)
-          ca[b] = c.r
-          ca[b + 1] = c.g
-          ca[b + 2] = c.b
-          n++
-        }
-        lastSample = nowMs
-      }
-      const o = n * 3
-      pa[o] = view.x
-      pa[o + 1] = view.y / vscale.k
-      pa[o + 2] = view.z
-      c.setHex(view.colorHex < 0 ? 0xffffff : view.colorHex)
-      ca[o] = c.r
-      ca[o + 1] = c.g
-      ca[o + 2] = c.b
-      posA.needsUpdate = true
-      colA.needsUpdate = true
-      geo.setDrawRange(0, n + 1)
-      line.scale.y = vscale.k
-      line.visible = true
     },
     dispose() {
       scene.remove(line)

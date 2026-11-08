@@ -26,8 +26,6 @@ import {
   SCALE_DIV,
   SCALE_MAX,
   SCALE_MIN,
-  TRAIL_POINTS,
-  TRAIL_SAMPLE_MS,
   SEL_RING_AMP,
   SEL_RING_OPACITY,
   SEL_RING_PERIOD_MS,
@@ -36,6 +34,7 @@ import {
   SEL_SCALE_TAU_S,
 } from './constants'
 import { AircraftLabel } from './labels'
+import { LiveTrail } from './liveTrail'
 import { SurfaceProbe } from './surface'
 import { pal, shadeHex } from './theme'
 import { terrainBlend, vscale } from './vertical'
@@ -49,7 +48,6 @@ export interface FrameCtx {
   focalPx: number
 }
 
-const HIST = TRAIL_POINTS - 1
 const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v))
 const tmpC = new THREE.Color()
 
@@ -113,7 +111,7 @@ export class AircraftView {
   })
   private drop: THREE.Line
   private dot: THREE.Mesh
-  private trail: THREE.Line
+  private trail: LiveTrail
   private dropMat = new THREE.LineBasicMaterial({ transparent: true, opacity: DROP_OPACITY })
   private dotMat = new THREE.MeshBasicMaterial({
     transparent: true,
@@ -128,12 +126,6 @@ export class AircraftView {
   private trueKm = 0.038
   /** Lowest model point in model units (negative: the origin is mid-fuselage). */
   private footY = 0
-  private posA = new THREE.BufferAttribute(new Float32Array(TRAIL_POINTS * 3), 3)
-  private colA = new THREE.BufferAttribute(new Float32Array(TRAIL_POINTS * 3), 3)
-  private hPos = new Float32Array(HIST * 3)
-  private hCol = new Float32Array(HIST * 3)
-  private hN = 0
-  private lastSample = 0
   private prevTrack = 0
   private prevMs = 0
   private rate = 0
@@ -148,12 +140,8 @@ export class AircraftView {
     this.drop = new THREE.Line(kit.dropGeo, this.dropMat)
     this.drop.frustumCulled = false
     this.dot = new THREE.Mesh(kit.dotGeo, this.dotMat)
-    const tg = new THREE.BufferGeometry()
-    tg.setAttribute('position', this.posA)
-    tg.setAttribute('color', this.colA)
-    this.trail = new THREE.Line(tg, kit.trailMat)
-    this.trail.frustumCulled = false
-    this.root.add(this.body, this.drop, this.dot, this.trail)
+    this.trail = new LiveTrail(kit.trailMat)
+    this.root.add(this.body, this.drop, this.dot, this.trail.line)
     this.label = new AircraftLabel(overlay)
   }
 
@@ -166,8 +154,7 @@ export class AircraftView {
   reset(ac: Aircraft, nowMs: number): void {
     this.id = ac.id
     this.probe.invalidate()
-    this.hN = 0
-    this.lastSample = nowMs
+    this.trail.reset()
     this.prevTrack = ac.trackDeg
     this.prevMs = nowMs
     this.rate = 0
@@ -226,7 +213,8 @@ export class AircraftView {
     c: FrameCtx,
     selected: boolean,
     hovered = false,
-    hideTrail = false,
+    /** Flat [eKm, nKm, altFt] tail of the fetched history this aircraft's trail continues from. */
+    seed: ArrayLike<number> | null = null,
   ): void {
     this.syncModel(ac)
     const muted = ac.onGround && !selected && !hovered
@@ -311,12 +299,11 @@ export class AircraftView {
       this.dotMat.opacity = DOT_OPACITY
     }
 
-    // A fetched history already includes the live path; drawing both gave a double trail.
-    this.trail.visible = !ac.onGround && !hideTrail
+    this.trail.line.visible = !ac.onGround
     // Trail Y is stored at x1 and scaled by the object, so old vertices follow the vertical scale.
-    this.trail.scale.y = vscale.k
-    if (ac.onGround) this.hN = 0
-    else this.writeTrail(c.nowMs, x, y / vscale.k, z, tmpC.setHex(col))
+    this.trail.line.scale.y = vscale.k
+    if (!ac.onGround)
+      this.trail.update(ac.fixes, seed, c.elevFt, x, y / vscale.k, z, tmpC.setHex(col))
 
     const arrow = ac.vsFpm > 300 ? '↑' : ac.vsFpm < -300 ? '↓' : ''
     const fl = String(Math.round(Math.max(0, ac.altFt) / 100)).padStart(3, '0') + arrow
@@ -324,45 +311,8 @@ export class AircraftView {
       this.label.set(ac.callsign || ac.id.toUpperCase(), fl, hexCss(raw), selected)
   }
 
-  private writeTrail(nowMs: number, x: number, y: number, z: number, cur: THREE.Color): void {
-    if (nowMs - this.lastSample >= TRAIL_SAMPLE_MS) {
-      this.lastSample = nowMs
-      if (this.hN === HIST) {
-        this.hPos.copyWithin(0, 3)
-        this.hCol.copyWithin(0, 3)
-        this.hN--
-      }
-      const o = this.hN * 3
-      this.hPos[o] = x
-      this.hPos[o + 1] = y
-      this.hPos[o + 2] = z
-      this.hCol[o] = cur.r
-      this.hCol[o + 1] = cur.g
-      this.hCol[o + 2] = cur.b
-      this.hN++
-    }
-    const n = this.hN + 1
-    const pa = this.posA.array as Float32Array
-    const ca = this.colA.array as Float32Array
-    for (let i = 0; i < n; i++) {
-      const last = i === this.hN
-      const t = (i + 1) / n
-      const f = 0.08 + 0.92 * t * t
-      const o = i * 3
-      pa[o] = last ? x : this.hPos[o]
-      pa[o + 1] = last ? y : this.hPos[o + 1]
-      pa[o + 2] = last ? z : this.hPos[o + 2]
-      ca[o] = (last ? cur.r : this.hCol[o]) * f
-      ca[o + 1] = (last ? cur.g : this.hCol[o + 1]) * f
-      ca[o + 2] = (last ? cur.b : this.hCol[o + 2]) * f
-    }
-    this.posA.needsUpdate = true
-    this.colA.needsUpdate = true
-    this.trail.geometry.setDrawRange(0, n)
-  }
-
   dispose(): void {
-    this.trail.geometry.dispose()
+    this.trail.dispose()
     this.mat.dispose()
     this.rotorMat.dispose()
     this.dropMat.dispose()

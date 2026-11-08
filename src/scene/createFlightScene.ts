@@ -366,7 +366,7 @@ export function createFlightScene(container: HTMLElement): FlightScene {
       const v = pool.active.get(ac.id) ?? pool.acquire(ac, nowMs)
       const isSel = ac.id === selId
       if (isSel) selAc = ac
-      v.update(ac, ctx, isSel, ac.id === hoverId, isSel && history.active)
+      v.update(ac, ctx, isSel, ac.id === hoverId, isSel ? history.tail : null)
     }
     gone.length = 0
     for (const id of pool.active.keys()) if (!seen.has(id)) gone.push(id)
@@ -382,7 +382,7 @@ export function createFlightScene(container: HTMLElement): FlightScene {
       runways?.thresholds ?? NO_THRESHOLDS,
     )
 
-    history.update(selAc ? (pool.active.get(selId as string) ?? null) : null, nowMs)
+    history.update(selAc ? (pool.active.get(selId as string) ?? null) : null)
 
     occupied.length = 0
     for (const v of pool.active.values()) {
