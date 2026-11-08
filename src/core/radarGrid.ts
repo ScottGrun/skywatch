@@ -18,6 +18,8 @@ export const GRID = {
 const HALF_BEAM = 0.5
 /** Interpolate between cuts only when they are closer than this, deg. */
 const MAX_CUT_GAP = 4.5
+/** Extend the lowest cut to the ground for voxels at most this far (deg) below it. */
+const LOW_EXTEND_DEG = 3
 const AZ_BINS = 720
 
 /** Per-sweep lookup from azimuth (0.5 deg bins) to the nearest radial. */
@@ -91,6 +93,10 @@ export function buildGrid(vol: Volume, center: LatLon): Uint8Array {
             if (sv > v) v = sv
           } else if (d < 0) lo = c
           else if (hi < 0) hi = c
+        }
+        if (v < 0 && lo < 0 && hi >= 0 && cuts[hi]!.sweep.el - el <= LOW_EXTEND_DEG) {
+          // Below the lowest beam (it overshoots the surface at long range): extend the lowest cut down to the ground.
+          v = sample(cuts[hi]!, az, r)
         }
         if (v < 0 && lo >= 0 && hi >= 0) {
           const a = cuts[lo]!

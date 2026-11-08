@@ -20,11 +20,11 @@ const STOPS: readonly (readonly [number, number, number, number])[] = [
   [75, 253, 253, 253],
 ]
 
-/** Opacity density 0..1: nothing under 15 dBZ, wispy 15-25, solid by ~50. */
+/** Opacity density 0..1: nothing under 15 dBZ, faint but visible 15-25, solid by ~50. */
 export function radarAlpha(dbz: number): number {
   if (dbz < RADAR_MIN_DBZ) return 0
   const t = Math.min(1, (dbz - RADAR_MIN_DBZ) / 40)
-  return 0.04 + 0.96 * t * t
+  return 0.14 + 0.86 * Math.pow(t, 1.4)
 }
 
 export function radarColor(dbz: number): [number, number, number] {

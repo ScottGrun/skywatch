@@ -49,3 +49,10 @@ test('a radar offset from the grid center shifts the echo', () => {
   const i = Math.floor(GRID.half + p.e + 11.13)
   expect(g[idx(i, GRID.half, Math.floor(p.up / GRID.dz))]).toBe(40)
 })
+
+test('the lowest cut is extended down to the ground below its beam', () => {
+  const g = buildGrid(volume(), { lat: 0, lon: 0 })
+  const p = polarToLocal(90, 0.5, 60) // beam ~0.9 km up: voxel k=0 is below it
+  const i = Math.floor(GRID.half + p.e)
+  expect(g[idx(i, GRID.half, 0)]).toBe(40)
+})

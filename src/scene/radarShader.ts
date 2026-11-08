@@ -60,8 +60,10 @@ void main() {
       // soft edges: box sides + top/bottom, and the scene's radial ground fog
       vec2 e = min(u.xz, 1.0 - u.xz);
       float edge = smoothstep(0.0, 0.06, min(e.x, e.y)) * smoothstep(0.0, 0.04, u.y);
-      float fog = 1.0 - smoothstep(uFogNear, uFogFar, distance(p.xz + uOrigin.xz, uFogCenter));
-      float a = c.a * edge * fog;
+      float fog = 1.0 - smoothstep(uFogFar, uFogFar + 40.0, distance(p.xz + uOrigin.xz, uFogCenter));
+      // gentle near-camera reduction (not a cutout) so the volume never becomes a solid wall around the eye
+      float nearF = mix(0.25, 1.0, smoothstep(1.0, 10.0, t * k));
+      float a = c.a * edge * fog * nearF;
       if (a > 0.003) {
         float s = 1.0 - exp(-a * uSigma * wStep);
         vec3 glow = c.rgb * (1.0 + 0.5 * a);
