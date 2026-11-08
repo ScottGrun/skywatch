@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { Aircraft } from '../types.ts'
-import { AirlineLogo } from './AirlineLogo.tsx'
+import type { Aircraft, Airport } from '../types.ts'
 import { ArrivalsBoard } from './ArrivalsBoard.tsx'
-import { altColor, callsignOf, dash, fmtAlt, fmtVsShort } from './format.ts'
+import { TrafficRow } from './TrafficRow.tsx'
 
 const OPEN_KEY = 'tracon3d.listOpen'
 const TAB_KEY = 'tracon3d.listTab'
@@ -10,13 +9,14 @@ type Tab = 'traffic' | 'arrivals'
 
 interface Props {
   aircraft: Aircraft[]
+  airport: Airport | null
   /** Aircraft before filtering, for the "N of M" header. */
   total: number
   selectedId: string | null
   onSelect: (id: string | null) => void
 }
 
-export function TrafficList({ aircraft, total, selectedId, onSelect }: Props) {
+export function TrafficList({ aircraft, airport, total, selectedId, onSelect }: Props) {
   const sorted = useMemo(() => [...aircraft].sort((a, b) => b.altFt - a.altFt), [aircraft])
   const count = (c: string) => aircraft.filter((a) => a.category === c).length
   const [open, setOpen] = useState(() => localStorage.getItem(OPEN_KEY) !== '0')
@@ -75,30 +75,22 @@ export function TrafficList({ aircraft, total, selectedId, onSelect }: Props) {
         </div>
       )}
       {open && tab === 'arrivals' && (
-        <ArrivalsBoard aircraft={aircraft} selectedId={selectedId} onSelect={onSelect} />
+        <ArrivalsBoard
+          aircraft={aircraft}
+          airport={airport}
+          selectedId={selectedId}
+          onSelect={onSelect}
+        />
       )}
       {open && tab === 'traffic' && (
         <div className="rows">
           {sorted.map((a) => (
-            <div
+            <TrafficRow
               key={a.id}
-              className={'row' + (a.id === selectedId ? ' sel' : '')}
-              onClick={() => onSelect(a.id === selectedId ? null : a.id)}
-            >
-              <div>
-                <div>
-                  <AirlineLogo callsign={callsignOf(a)} /> <b className="cs">{callsignOf(a)}</b>{' '}
-                  <span className="ty">{dash(a.typeCode)}</span>
-                </div>
-                <div className="rt">
-                  {dash(a.origin)} → {dash(a.dest)}
-                </div>
-              </div>
-              <div className="alt">
-                <b style={{ color: altColor(a) }}>{fmtAlt(a)}</b>
-                <div className="ty">{fmtVsShort(a.vsFpm)}</div>
-              </div>
-            </div>
+              a={a}
+              selected={a.id === selectedId}
+              onSelect={() => onSelect(a.id === selectedId ? null : a.id)}
+            />
           ))}
         </div>
       )}

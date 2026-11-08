@@ -1,33 +1,14 @@
-import type { Aircraft, Phase } from '../types.ts'
+import type { Aircraft, Airport } from '../types.ts'
 
-/** Arrivals board rows: airborne ARR aircraft, soonest ETA first, unknown ETA last. */
-export function arrivalsBoard(list: readonly Aircraft[]): Aircraft[] {
-  return list
-    .filter((a) => a.category === 'ARR' && !a.onGround)
-    .sort((a, b) => {
-      if (a.etaMin === null || b.etaMin === null) {
-        return a.etaMin === b.etaMin ? 0 : a.etaMin === null ? 1 : -1
-      }
-      return a.etaMin - b.etaMin
-    })
+/** True when the aircraft's real route destination (IATA or ICAO) is this airport. */
+export function isInboundTo(a: Aircraft, ap: Pick<Airport, 'iata' | 'icao'>): boolean {
+  const d = a.dest.trim().toUpperCase()
+  return (
+    d !== '' && (d === ap.icao.toUpperCase() || (ap.iata !== '' && d === ap.iata.toUpperCase()))
+  )
 }
 
-export function fmtEta(min: number | null): string {
-  if (min === null) return '—'
-  const m = Math.round(min)
-  return m < 1 ? '<1 min' : `${m} min`
-}
-
-/** Board status wording for an arriving aircraft's phase. */
-export function arrivalStatus(p: Phase): string {
-  switch (p) {
-    case 'Final approach':
-      return 'Final'
-    case 'Landing':
-      return 'Landing'
-    case 'Approach':
-      return 'Approach'
-    default:
-      return 'Descent'
-  }
+/** Arrivals board rows: airborne aircraft whose looked-up route ends here, nearest first. */
+export function arrivalsBoard(list: readonly Aircraft[], ap: Pick<Airport, 'iata' | 'icao'>) {
+  return list.filter((a) => !a.onGround && isInboundTo(a, ap)).sort((a, b) => a.distNm - b.distNm)
 }

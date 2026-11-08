@@ -290,6 +290,7 @@ export function App() {
       />
       <TrafficList
         aircraft={visible}
+        airport={airport}
         total={aircraft.length}
         selectedId={selectedId}
         onSelect={onListSelect}

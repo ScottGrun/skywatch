@@ -21,33 +21,6 @@
   color: var(--strong);
   border-bottom-color: var(--strong);
 }
-.arr-row {
-  grid-template-columns: 1fr 44px 76px;
-  gap: 8px;
-  align-items: center;
-}
-.arr-head {
-  font: 600 9px var(--mono);
-  letter-spacing: 0.1em;
-  color: var(--lbl);
-  padding: 8px 16px;
-  border-bottom: 1px solid var(--divider);
-}
-.arr-head span:last-child {
-  text-align: right;
-}
-.arr-from {
-  font: 600 12px var(--mono);
-  color: var(--sec);
-}
-.arr-air {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.arr-main {
-  min-width: 0;
-}
 .arr-empty {
   padding: 16px;
   font: 500 11px var(--mono);
