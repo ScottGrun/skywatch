@@ -5,6 +5,7 @@
   "assets": {
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/*"],
+    // Bot check runs on pages + API only; hashed bundles and baked data serve directly (free, no Worker invocations).
+    "run_worker_first": ["/*", "!/assets/*", "!/models/*", "!/logos/*", "!/data/*", "!/robots.txt"],
   },
 }
