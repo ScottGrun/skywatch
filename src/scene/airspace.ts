@@ -100,7 +100,12 @@ function addVolume(
 }
 
 function material(color: number, dashed: boolean): THREE.LineBasicMaterial {
-  const p = { color: shadeHex(color, pal().shade), transparent: true, opacity: LINE_OPACITY, depthWrite: false }
+  const p = {
+    color: shadeHex(color, pal().shade),
+    transparent: true,
+    opacity: LINE_OPACITY,
+    depthWrite: false,
+  }
   return applyRadialFog(
     dashed
       ? new THREE.LineDashedMaterial({ ...p, dashSize: 0.7, gapSize: 0.5 })

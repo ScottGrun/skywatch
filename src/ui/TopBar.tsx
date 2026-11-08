@@ -1,8 +1,9 @@
-import type { Aircraft, Airport, FeedStatus, Theme } from '../types.ts'
+import type { Aircraft, Airport, FeedStatus, RadarStatus, Theme } from '../types.ts'
 import { ThemeToggle } from './ThemeToggle.tsx'
 import type { FilterState } from '../core/filter.ts'
 import { AirportSearch } from './AirportSearch.tsx'
 import { FilterDropdown } from './FilterDropdown.tsx'
+import { WeatherDropdown } from './WeatherDropdown.tsx'
 import { Clock } from './Clock.tsx'
 import { LiveStatus } from './LiveStatus.tsx'
 import { WeatherLine } from './WeatherLine.tsx'
@@ -20,6 +21,11 @@ interface Props {
   onHome: () => void
   theme: Theme
   onTheme: () => void
+  radarOn: boolean
+  radar: RadarStatus
+  radarOpacity: number
+  onRadar: (on: boolean) => void
+  onRadarOpacity: (a: number) => void
 }
 
 export function TopBar({
@@ -34,6 +40,11 @@ export function TopBar({
   onHome,
   theme,
   onTheme,
+  radarOn,
+  radar,
+  radarOpacity,
+  onRadar,
+  onRadarOpacity,
 }: Props) {
   return (
     <header className="topbar">
@@ -44,6 +55,13 @@ export function TopBar({
         </div>
         <AirportSearch airports={airports} onPick={onPick} />
         <FilterDropdown filter={filter} aircraft={aircraft} onChange={onFilter} />
+        <WeatherDropdown
+          radarOn={radarOn}
+          radar={radar}
+          opacity={radarOpacity}
+          onRadar={onRadar}
+          onOpacity={onRadarOpacity}
+        />
       </div>
       <div className="topbar-right">
         {airport && (

@@ -168,7 +168,11 @@ export function airportLights(ap: Airport, minWidthKm: number): LightSpec[] {
 }
 
 /** Sparse lights for a neighbouring airport: edge, threshold and end rows only, in `origin`'s frame. */
-export function nearbyLights(aps: readonly Airport[], origin: LatLon, minWidthKm: number): LightSpec[] {
+export function nearbyLights(
+  aps: readonly Airport[],
+  origin: LatLon,
+  minWidthKm: number,
+): LightSpec[] {
   const out: LightSpec[] = []
   for (const ap of aps) {
     for (const rw of ap.runways) {

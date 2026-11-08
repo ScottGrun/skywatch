@@ -12,6 +12,7 @@ This project was built entirely by AI coding agents (Claude Code) orchestrating 
 - Terrain from elevation tiles, with a tile level-of-detail (LOD) map
 - Runway markings and runway/approach lights, plus runways of nearby airports
 - Controlled airspace volumes (US only, off by default)
+- 3D NEXRAD weather radar volume (US, WEATHER menu, off by default), decoded in the browser
 - METAR weather line for the selected airport
 - Aircraft photos, type, operator and registration; airline logos
 - Light and dark themes
@@ -38,22 +39,23 @@ flowchart LR
 
 ## Data sources
 
-| Source                                                                           | Used for                                                                   | License / terms                                | Key                                   |
-| -------------------------------------------------------------------------------- | -------------------------------------------------------------------------- | ---------------------------------------------- | ------------------------------------- |
-| [adsb.lol](https://adsb.lol)                                                     | Live traffic (point API) and flight traces                                 | ODbL 1.0                                       | No                                    |
-| [adsbdb](https://www.adsbdb.com)                                                 | Aircraft details (type, owner) and callsign routes                         | Free public API                                | No                                    |
-| [planespotters.net](https://www.planespotters.net)                               | Aircraft photo fallback                                                    | Photos credited to photographers, linked back  | No                                    |
-| [airport-data.com](https://www.airport-data.com)                                 | Aircraft photos (URLs via adsbdb)                                          | Site terms; credited in UI                     | No                                    |
-| [OurAirports](https://ourairports.com/data/)                                     | Airports and runways (baked by `bake:airports`)                            | Public domain                                  | No                                    |
-| [aviationweather.gov](https://aviationweather.gov) (FAA/NWS)                     | METAR                                                                      | US government, public                          | No                                    |
-| FAA Class_Airspace (ArcGIS FeatureServer)                                        | US Class B/C/D airspace                                                    | Public domain                                  | No                                    |
-| [AWS Terrain Tiles](https://registry.opendata.aws/terrain-tiles/) (Terrarium)    | Elevation (default)                                                        | Open data; see AWS registry for attributions   | No                                    |
-| [Mapbox](https://www.mapbox.com)                                                 | Optional basemap and optional Terrain-RGB elevation                        | Mapbox terms, attribution shown                | Optional (`VITE_MAPBOX_TOKEN`)        |
-| Esri World Dark/Light Gray Canvas                                                | Keyless fallback basemap                                                   | Esri terms, attribution shown                  | No                                    |
-| [OpenSky Network](https://opensky-network.org)                                   | Optional alternate traffic source, local dev only (blocks Cloudflare)      | OpenSky terms                                  | Optional (client id and secret)       |
-| [tar1090-db](https://github.com/wiedehopf/tar1090-db)                            | Aircraft type database, baked by `bake:aircraft`                           | See upstream                                   | No                                    |
-| [Jxck-S/airline-logos](https://github.com/Jxck-S/airline-logos)                 | Airline logos, baked by `bake:logos`                                       | Trademarks of their owners                     | No                                    |
-| [Flightradar24 3D models](https://github.com/Flightradar24/fr24-3d-models)       | Aircraft models, baked by `bake:models`                                    | GPL-2.0                                        | No                                    |
+| Source                                                                                       | Used for                                                                                | License / terms                               | Key                             |
+| -------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- | --------------------------------------------- | ------------------------------- |
+| [adsb.lol](https://adsb.lol)                                                                 | Live traffic (point API) and flight traces                                              | ODbL 1.0                                      | No                              |
+| [adsbdb](https://www.adsbdb.com)                                                             | Aircraft details (type, owner) and callsign routes                                      | Free public API                               | No                              |
+| [planespotters.net](https://www.planespotters.net)                                           | Aircraft photo fallback                                                                 | Photos credited to photographers, linked back | No                              |
+| [airport-data.com](https://www.airport-data.com)                                             | Aircraft photos (URLs via adsbdb)                                                       | Site terms; credited in UI                    | No                              |
+| [OurAirports](https://ourairports.com/data/)                                                 | Airports and runways (baked by `bake:airports`)                                         | Public domain                                 | No                              |
+| [aviationweather.gov](https://aviationweather.gov) (FAA/NWS)                                 | METAR                                                                                   | US government, public                         | No                              |
+| FAA Class_Airspace (ArcGIS FeatureServer)                                                    | US Class B/C/D airspace                                                                 | Public domain                                 | No                              |
+| [NOAA NEXRAD Level II](https://registry.opendata.aws/noaa-nexrad/) via Unidata/AWS Open Data | 3D weather radar (fetched by the browser from `unidata-nexrad-level2.s3.amazonaws.com`) | Public domain (NOAA)                          | No                              |
+| [AWS Terrain Tiles](https://registry.opendata.aws/terrain-tiles/) (Terrarium)                | Elevation (default)                                                                     | Open data; see AWS registry for attributions  | No                              |
+| [Mapbox](https://www.mapbox.com)                                                             | Optional basemap and optional Terrain-RGB elevation                                     | Mapbox terms, attribution shown               | Optional (`VITE_MAPBOX_TOKEN`)  |
+| Esri World Dark/Light Gray Canvas                                                            | Keyless fallback basemap                                                                | Esri terms, attribution shown                 | No                              |
+| [OpenSky Network](https://opensky-network.org)                                               | Optional alternate traffic source, local dev only (blocks Cloudflare)                   | OpenSky terms                                 | Optional (client id and secret) |
+| [tar1090-db](https://github.com/wiedehopf/tar1090-db)                                        | Aircraft type database, baked by `bake:aircraft`                                        | See upstream                                  | No                              |
+| [Jxck-S/airline-logos](https://github.com/Jxck-S/airline-logos)                              | Airline logos, baked by `bake:logos`                                                    | Trademarks of their owners                    | No                              |
+| [Flightradar24 3D models](https://github.com/Flightradar24/fr24-3d-models)                   | Aircraft models, baked by `bake:models`                                                 | GPL-2.0                                       | No                              |
 
 ## Running locally
 

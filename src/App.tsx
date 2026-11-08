@@ -3,6 +3,7 @@ import type {
   Aircraft,
   Airport,
   AirspaceStatus,
+  RadarStatus,
   FeedStatus,
   FlightScene,
   Theme,
@@ -35,6 +36,8 @@ import './ui/panels.css'
 
 const STORE_KEY = 'tracon3d.airport'
 const AIRSPACE_KEY = 'tracon3d.airspace'
+const RADAR_KEY = 'tracon3d.radar'
+const RADAR_NONE: RadarStatus = { state: 'off', available: false, site: '', timeMs: 0 }
 const AIRSPACE_OFF: AirspaceStatus = { state: 'off', attribution: '', note: '' }
 
 function initialAirport(list: Airport[]): Airport | undefined {
@@ -84,6 +87,22 @@ export function App() {
       return false
     }
   })
+  const [radarOn, setRadarOn] = useState(() => {
+    try {
+      return localStorage.getItem(RADAR_KEY) === '1'
+    } catch {
+      return false
+    }
+  })
+  const [radarOpacity, setRadarOpacity] = useState(() => {
+    try {
+      const v = Number(localStorage.getItem('tracon3d.radarOpacity') ?? 0.7)
+      return Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 0.7
+    } catch {
+      return 0.7
+    }
+  })
+  const [radar, setRadarStatus] = useState<RadarStatus>(RADAR_NONE)
   // The scene persists this itself (same key); App only mirrors it for the button.
   const [terrainOn, setTerrainOn] = useState(() => {
     try {
@@ -125,6 +144,7 @@ export function App() {
       scene.on('select', setSelectedId),
       scene.on('follow', setFollow),
       scene.on('airspace', setAirspaceStatus),
+      scene.on('radar', setRadarStatus),
     ]
     return () => {
       offs.forEach((off) => off())
@@ -228,6 +248,25 @@ export function App() {
     }
   }, [airspaceOn])
   useEffect(() => {
+    sceneRef.current?.setRadar(radarOn)
+  }, [radarOn])
+  const onRadar = useCallback((on: boolean) => {
+    setRadarOn(on)
+    try {
+      localStorage.setItem(RADAR_KEY, on ? '1' : '0') // only written once the user has chosen
+    } catch {
+      /* ignore */
+    }
+  }, [])
+  useEffect(() => {
+    sceneRef.current?.setRadarOpacity(radarOpacity)
+    try {
+      localStorage.setItem('tracon3d.radarOpacity', String(radarOpacity))
+    } catch {
+      /* ignore */
+    }
+  }, [radarOpacity])
+  useEffect(() => {
     applyTheme(theme)
     sceneRef.current?.setTheme(theme)
   }, [theme])
@@ -292,6 +331,11 @@ export function App() {
         onHome={onHome}
         theme={theme}
         onTheme={onTheme}
+        radarOn={radarOn}
+        radar={radar}
+        radarOpacity={radarOpacity}
+        onRadar={onRadar}
+        onRadarOpacity={setRadarOpacity}
       />
       <TrafficList
         aircraft={visible}

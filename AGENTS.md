@@ -19,6 +19,15 @@ pnpm · Vite · React 19 · TypeScript (strict) · three.js · Cloudflare Worker
 - `scripts/build-airports.ts` — downloads OurAirports CSVs → `public/data/airports.json`.
 - `scripts/bake-logos.ts` (`pnpm bake:logos`) — airline tail-icon logos from Jxck-S/airline-logos (`flightaware_logos`, named by ICAO code; curated list in `scripts/logoCodes.ts`) resized to 48x48 PNG → `public/logos/<ICAO>.png` + `index.json`. Gitignored like the aircraft DB; trademarks of their owners, source license unclear. The app works without it (no logos, no 404s: only codes in `index.json` are requested). `src/core/airlineCode.ts` maps callsign → code; `src/data/logos.ts` holds the index + LOGOS toggle (`tracon3d.logos`).
 
+## Weather radar (3D NEXRAD)
+
+- Data: NOAA NEXRAD Level II volumes (Archive II) from the Unidata bucket `unidata-nexrad-level2.s3.amazonaws.com` (AWS Open Data, public domain, no key, CORS open). The browser fetches directly; no worker route. `src/data/radarList.ts` finds the newest key (`YYYY/MM/DD/SITE/`, listing tail via `start-after` + continuation tokens, `_MDM` skipped, > 3 h old rejected, previous UTC day as fallback).
+- Sites: `src/core/radarSites.ts` is the baked NOAA/NCEI WSR-88D station table (163 sites incl. AK/HI/PR/Guam; TDWR excluded). `radarsFor()` returns the nearest 2 sites within 230 km; both are decoded and merged by per-voxel max.
+- Decoder: `src/core/nexrad/` (own bzip2 + message-31 reflectivity decoder, no deps; `.gz` files handled in the worker). `src/data/radarWorker.ts` decodes and builds the grid off the main thread (~2 s per volume); `src/core/radarGrid.ts` resamples polar sweeps (beam geometry in `radarGeo.ts`) into a 240x240x24 grid (1 km cells, 0.5 km layers, 0-12 km MSL) centred on the airport, uint8 dBZ.
+- Render: `src/scene/radarMesh.ts` + `radarShader.ts` raymarch a `Data3DTexture`, drawn last (no depth test). `src/scene/radarControl.ts` owns lazy loading, the 5 min refresh and status events. UI: WEATHER popover (`src/ui/WeatherDropdown.tsx`: toggle, opacity, scan/status, dBZ legend).
+- Defaults: radar OFF for everyone; `tracon3d.radar` is written only when the user toggles it; opacity `tracon3d.radarOpacity` (0.7). Status "No radar in range" when no site is within 230 km. Dev only: `?radarKey=<bucket key>` pins an archived volume (`import.meta.env.DEV`).
+- Tests are offline (fixtures/mocked fetch); `e2e/radar.e2e.ts` hits live data.
+
 ## Rules
 
 1. Per-frame work never goes through React state. UI refreshes at ~2 Hz from `TrafficSource.snapshot()`.
