@@ -1,6 +1,7 @@
 /// <reference lib="webworker" />
 // Web Worker: Level II bytes -> dBZ voxel grid. Keeps bzip2 + resampling off the main thread.
 import { decodeVolume } from '../core/nexrad/level2.ts'
+import { buildBlocks, compositeMax } from '../core/radarBlocks.ts'
 import { buildGrid, mergeMax } from '../core/radarGrid.ts'
 import type { RadarJob, RadarResult } from './radarTypes.ts'
 
@@ -33,7 +34,17 @@ self.onmessage = async (ev: MessageEvent<RadarJob>) => {
       timeMs = Math.max(timeMs, vol.timeMs)
     }
     if (!grid) throw new Error('no volumes')
-    post({ id, grid, sites, timeMs, decodeMs, gridMs }, [grid.buffer])
+    const blocks = buildBlocks(grid)
+    const composite = compositeMax(grid)
+    post({ id, grid, blocks, composite, sites, timeMs, decodeMs, gridMs }, [
+      grid.buffer,
+      composite.buffer,
+      blocks.pos.buffer,
+      blocks.col.buffer,
+      blocks.nrm.buffer,
+      blocks.uv.buffer,
+      blocks.index.buffer,
+    ])
   } catch (e) {
     post({ id, error: String(e) })
   }

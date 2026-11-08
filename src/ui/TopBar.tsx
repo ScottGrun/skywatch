@@ -1,4 +1,4 @@
-import type { Aircraft, Airport, FeedStatus, RadarStatus, Theme } from '../types.ts'
+import type { Aircraft, Airport, FeedStatus, RadarStatus, RadarStyle, Theme } from '../types.ts'
 import { ThemeToggle } from './ThemeToggle.tsx'
 import type { FilterState } from '../core/filter.ts'
 import { AirportSearch } from './AirportSearch.tsx'
@@ -26,6 +26,8 @@ interface Props {
   radarOpacity: number
   onRadar: (on: boolean) => void
   onRadarOpacity: (a: number) => void
+  radarStyle: RadarStyle
+  onRadarStyle: (s: RadarStyle) => void
 }
 
 export function TopBar({
@@ -45,6 +47,8 @@ export function TopBar({
   radarOpacity,
   onRadar,
   onRadarOpacity,
+  radarStyle,
+  onRadarStyle,
 }: Props) {
   return (
     <header className="topbar">
@@ -61,6 +65,8 @@ export function TopBar({
           opacity={radarOpacity}
           onRadar={onRadar}
           onOpacity={onRadarOpacity}
+          style={radarStyle}
+          onStyle={onRadarStyle}
         />
       </div>
       <div className="topbar-right">

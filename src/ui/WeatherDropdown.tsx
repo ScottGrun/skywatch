@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { radarColor } from '../core/radarColor.ts'
-import type { RadarStatus } from '../types.ts'
+import type { RadarStatus, RadarStyle } from '../types.ts'
 
 interface Props {
   radarOn: boolean
@@ -8,6 +8,8 @@ interface Props {
   opacity: number
   onRadar: (on: boolean) => void
   onOpacity: (a: number) => void
+  style: RadarStyle
+  onStyle: (s: RadarStyle) => void
 }
 
 const STOPS = [15, 30, 45, 60, 75]
@@ -26,7 +28,15 @@ function statusLine(on: boolean, r: RadarStatus): string {
 }
 
 /** Compact WEATHER popover (same chrome as the FILTER dropdown): radar toggle, opacity, scan info, dBZ legend. */
-export function WeatherDropdown({ radarOn, radar, opacity, onRadar, onOpacity }: Props) {
+export function WeatherDropdown({
+  radarOn,
+  radar,
+  opacity,
+  onRadar,
+  onOpacity,
+  style,
+  onStyle,
+}: Props) {
   const [open, setOpen] = useState(false)
   const root = useRef<HTMLDivElement>(null)
   const trigger = useRef<HTMLButtonElement>(null)
@@ -90,6 +100,23 @@ export function WeatherDropdown({ radarOn, radar, opacity, onRadar, onOpacity }:
             <span className="fl-name">NEXRAD radar</span>
           </div>
           <div className="wx-body">
+            <div className="wx-row" role="radiogroup" aria-label="Radar style">
+              <span className="label">STYLE</span>
+              <span className="wx-style">
+                {(['volume', 'blocks'] as const).map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    role="radio"
+                    aria-checked={style === s}
+                    className={style === s ? 'on' : ''}
+                    onClick={() => onStyle(s)}
+                  >
+                    {s === 'volume' ? 'Volume' : 'Blocks'}
+                  </button>
+                ))}
+              </span>
+            </div>
             <div className="vscale wx-op">
               <span className="label">OPACITY {pct}%</span>
               <input

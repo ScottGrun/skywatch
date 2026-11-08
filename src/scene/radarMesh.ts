@@ -1,14 +1,15 @@
 import * as THREE from 'three'
 import { buildRadarLut } from '../core/radarColor'
 import { GRID } from '../core/radarGrid'
+import type { RadarResult } from '../data/radarTypes'
 import { radialFog } from './radialFog'
 import { RADAR_FRAG, RADAR_VERT } from './radarShader'
 import { vscale } from './vertical'
 
 export interface RadarMesh {
-  mesh: THREE.Mesh
-  /** Replace the dBZ grid (layout of core/radarGrid). */
-  setGrid(grid: Uint8Array): void
+  mesh: THREE.Object3D
+  /** Replace the data with a decoded result (grid layout of core/radarGrid). */
+  setResult(res: RadarResult): void
   /** Target opacity 0-1; the uniform eases toward it each frame. */
   setOpacity(a: number): void
   dispose(): void
@@ -91,8 +92,8 @@ export function createRadarMesh(airportElevKm: number): RadarMesh {
     setOpacity(a) {
       target = a
     },
-    setGrid(grid) {
-      tex.image.data = grid
+    setResult(res) {
+      tex.image.data = res.grid
       tex.needsUpdate = true
       mesh.visible = true
     },

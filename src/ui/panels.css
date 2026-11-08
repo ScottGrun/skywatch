@@ -380,3 +380,24 @@
 .wx-ticks {
   margin-top: -4px;
 }
+.wx-style {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.wx-style button {
+  font: 500 11px var(--mono);
+  color: var(--body);
+  background: transparent;
+  border: 0;
+  padding: 2px 9px;
+  cursor: pointer;
+}
+.wx-style button + button {
+  border-left: 1px solid var(--border);
+}
+.wx-style button.on {
+  color: var(--strong);
+  background: var(--border);
+}

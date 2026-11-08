@@ -444,6 +444,7 @@ export function createFlightScene(container: HTMLElement): FlightScene {
     setAirspace: airspace.set,
     setRadar: radar.set,
     setRadarOpacity: radar.setOpacity,
+    setRadarStyle: radar.setStyle,
     setFilter(pred) {
       filter = pred
     },
