@@ -2,6 +2,7 @@ import { classFromCategory } from '../core/aircraftClass.ts'
 import { airlineFromCallsign } from '../core/airlines.ts'
 import { classify, etaMinutes, phase } from '../core/classify.ts'
 import { Track, type Report } from '../core/deadReckon.ts'
+import { FixTrail } from '../core/fixTrail.ts'
 import { FPM_PER_MS, FT_PER_M, KM_PER_NM, KT_PER_MS, toLocal } from '../core/geo.ts'
 import type { Aircraft, Airport, FeedStatus, TrafficSource } from '../types.ts'
 import { createAircraftDb } from './aircraftDb.ts'
@@ -43,6 +44,7 @@ interface Entry {
   feedType?: string
   feedReg?: string
   track: Track
+  fixes: FixTrail
   seenMs: number // last time present in a response
   reportMs: number // last time the position actually changed
 }
@@ -116,7 +118,10 @@ export function createTraffic(airport: Airport, opts: TrafficOptions = {}): Traf
         t,
       }
       const e = entries.get(s.icao24)
+      const loc = toLocal(airport, s.lat, s.lon)
       if (!e) {
+        const fixes = new FixTrail()
+        if (!s.onGround) fixes.push(loc.e, loc.n, report.altFt, t, report.gsKt)
         entries.set(s.icao24, {
           id: s.icao24,
           callsign: s.callsign,
@@ -124,6 +129,7 @@ export function createTraffic(airport: Airport, opts: TrafficOptions = {}): Traf
           feedType: s.t,
           feedReg: s.r,
           track: new Track(report),
+          fixes,
           seenMs: t,
           reportMs: t,
         })
@@ -140,8 +146,14 @@ export function createTraffic(airport: Airport, opts: TrafficOptions = {}): Traf
           prev.lon !== report.lon ||
           prev.trackDeg !== report.trackDeg
         ) {
-          e.track.update(report)
-          e.reportMs = t
+          // Outliers (MLAT jumps, stale or out-of-order reports) neither enter the trail nor move the aircraft.
+          const res = s.onGround
+            ? (e.fixes.clear(), 'accepted')
+            : e.fixes.push(loc.e, loc.n, report.altFt, t, report.gsKt)
+          if (res === 'accepted') {
+            e.track.update(report)
+            e.reportMs = t
+          }
         }
       }
       enricher.request(s.icao24, e?.callsign ?? s.callsign, {
@@ -258,6 +270,7 @@ export function createTraffic(airport: Airport, opts: TrafficOptions = {}): Traf
           dest,
           etaMin: etaMinutes(category, input),
           lastSeenMs: e.reportMs,
+          fixes: e.fixes,
         })
       }
       return out

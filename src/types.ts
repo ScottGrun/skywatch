@@ -1,3 +1,5 @@
+import type { FixTrail } from './core/fixTrail'
+
 // Shared contracts between data layer (src/data), scene (src/scene) and UI (src/ui).
 // Change only with care: all three layers depend on these shapes.
 
@@ -67,6 +69,7 @@ export interface Aircraft {
   dest: string
   etaMin: number | null // ARR: minutes to touchdown; others: minutes to leave 40 NM area
   lastSeenMs: number // wall-clock ms of last real position report
+  fixes?: FixTrail // vetted real position reports behind the aircraft (trail source)
 }
 
 /** Read-only view the scene and UI consume. Implemented in src/data/traffic.ts. */

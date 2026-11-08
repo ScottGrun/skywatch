@@ -52,8 +52,6 @@ export const DIR_INTENSITY = 1.6
 export const EMISSIVE = 0.55
 
 // Aircraft view
-export const TRAIL_POINTS = 80
-export const TRAIL_SAMPLE_MS = 2000
 export const DROP_OPACITY = 0.45
 export const DOT_OPACITY = 0.55
 export const SCALE_DIV = 50
