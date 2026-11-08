@@ -1,3 +1,4 @@
+import { isAiBot } from './aiBots.ts'
 import { createAdsbdb, transientResults } from './adsbdb.ts'
 import { createAdsbLolClient } from './adsblol.ts'
 import { createAirspaceClient } from './airspace.ts'
@@ -53,6 +54,10 @@ export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url)
     const path = url.pathname
+
+    // robots.txt stays readable so well-behaved bots can see the policy.
+    if (path !== '/robots.txt' && isAiBot(req.headers.get('user-agent')))
+      return new Response('Forbidden', { status: 403 })
 
     if (path === '/api/states') {
       const q = url.searchParams
