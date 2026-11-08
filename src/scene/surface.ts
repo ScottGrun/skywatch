@@ -1,17 +1,8 @@
 // Height of the surface as actually drawn (tile mesh triangles), so aircraft never sink into it.
 import { toLatLon, toLocal } from '../core/geo'
 import type { Airport } from '../types'
-import {
-  DETAIL_HALF_KM,
-  DETAIL_LIFT,
-  DETAIL_SEGS,
-  DETAIL_ZOOM,
-  TILE_FAR_DROP,
-  TILE_R,
-  TILE_R_FAR,
-  TILE_ZOOM,
-  TILE_ZOOM_FAR,
-} from './constants'
+import { TILE_FAR_DROP, TILE_R, TILE_R_FAR, TILE_ZOOM, TILE_ZOOM_FAR } from './constants'
+import { activeRings } from './lodRings'
 import { SEGS_INNER, SEGS_OUTER } from './tiles'
 import { isTerrainLoaded, terrainOrigin, terrainY } from './terrain'
 import { layerHeight, type GridLayer } from './surfaceMath'
@@ -24,20 +15,22 @@ const block = (ap: Airport, z: number, R: number, segs: number, lift: number): G
 }
 
 let cachedFor: Airport | null = null
+let cachedRings: readonly unknown[] = []
 let layers: GridLayer[] = []
 
 function layersFor(ap: Airport): GridLayer[] {
-  if (cachedFor !== ap) {
+  if (cachedFor !== ap || cachedRings !== activeRings()) {
     cachedFor = ap
+    cachedRings = activeRings()
     layers = [
       block(ap, TILE_ZOOM_FAR, TILE_R_FAR, SEGS_OUTER, -TILE_FAR_DROP),
       block(ap, TILE_ZOOM, TILE_R, SEGS_INNER, 0),
-      {
-        z: DETAIL_ZOOM,
-        segs: DETAIL_SEGS,
-        ...patchTileRange(ap.lat, ap.lon, DETAIL_ZOOM, DETAIL_HALF_KM),
-        lift: DETAIL_LIFT,
-      },
+      ...activeRings().map((r) => ({
+        z: r.z,
+        segs: r.segs,
+        ...patchTileRange(ap.lat, ap.lon, r.z, r.halfKm),
+        lift: r.lift,
+      })),
     ]
   }
   return layers

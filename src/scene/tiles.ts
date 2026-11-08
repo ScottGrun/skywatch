@@ -3,7 +3,8 @@ import { toLocal } from '../core/geo'
 import type { Airport, Theme } from '../types'
 import { TILE_FAR_DROP, TILE_R, TILE_R_FAR, TILE_ZOOM, TILE_ZOOM_FAR } from './constants'
 import { PALETTES } from './theme'
-import { buildDetailPatch, type DetailPatch } from './detailPatch'
+import { selectRings } from './lodRings'
+import { buildLodRing, type RingStats } from './ringBuild'
 import { createTileLoader, type TileSlot } from './tileLoader'
 import { applyRadialFog } from './radialFog'
 import { runwayGeoms } from './runways'
@@ -79,7 +80,7 @@ export function buildTiles(
   extraSegs: readonly Seg[] = [],
 ): TilesStats {
   const slots: TileSlot[] = []
-  let detail: DetailPatch | null = null
+  const ringStats: RingStats = { slots: [], count: 0, triangles: 0 }
   let curTheme = theme
   const tiles = createTileLoader(token, maxAniso, styleFor, tintFor, markMapboxDown)
   const stats: TilesStats = {
@@ -88,7 +89,7 @@ export function buildTiles(
     setTheme(t) {
       curTheme = t
       base.material.color.setHex(PALETTES[t].bg)
-      for (const s of [...slots, ...(detail?.slots ?? [])]) tiles.load(s, t)
+      for (const s of [...slots, ...ringStats.slots]) tiles.load(s, t)
     },
   }
   const t0 = performance.now()
@@ -169,12 +170,19 @@ export function buildTiles(
       await new Promise((r) => setTimeout(r))
     }
     if (!alive) return
-    detail = buildDetailPatch(group, ap, tiles, curTheme, () => alive)
     stats.terrainMs = performance.now() - t0
     onReady()
     console.info(
       `[terrain] ${terrainSource()} ${Math.round(stats.terrainMs)} ms (elevation ${Math.round(tLoaded - t0)} ms), ${stats.triangles} triangles`,
     )
+    // LOD rings in order of increasing zoom (each one's textures queue behind the previous one's),
+    // after the base is ready so they never delay first render or traffic.
+    const rings = selectRings(!!token())
+    for (let k = 0; k < rings.length && alive; k++) {
+      await buildLodRing(group, ap, tiles, curTheme, rings[k], k + 1, () => alive, ringStats)
+    }
+    stats.triangles += ringStats.triangles
+    console.info(`[terrain] LOD rings: ${ringStats.count} tiles, ${ringStats.triangles} triangles`)
   })
   return stats
 }
