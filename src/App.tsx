@@ -249,12 +249,15 @@ export function App() {
   }, [airspaceOn])
   useEffect(() => {
     sceneRef.current?.setRadar(radarOn)
+  }, [radarOn])
+  const onRadar = useCallback((on: boolean) => {
+    setRadarOn(on)
     try {
-      localStorage.setItem(RADAR_KEY, radarOn ? '1' : '0')
+      localStorage.setItem(RADAR_KEY, on ? '1' : '0') // only written once the user has chosen
     } catch {
       /* ignore */
     }
-  }, [radarOn])
+  }, [])
   useEffect(() => {
     sceneRef.current?.setRadarOpacity(radarOpacity)
     try {
@@ -331,7 +334,7 @@ export function App() {
         radarOn={radarOn}
         radar={radar}
         radarOpacity={radarOpacity}
-        onRadar={setRadarOn}
+        onRadar={onRadar}
         onRadarOpacity={setRadarOpacity}
       />
       <TrafficList

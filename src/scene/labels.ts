@@ -61,7 +61,7 @@ export class AircraftLabel {
       }
     }
     if (l.fl !== fl) this.fl.textContent = l.fl = fl
-    if (l.color !== colorCss) this.fl.style.color = readable(l.color = colorCss)
+    if (l.color !== colorCss) this.fl.style.color = readable((l.color = colorCss))
     if (l.sel !== selected) {
       l.sel = selected
       this.el.style.borderColor = selected ? 'var(--tag-border-sel)' : 'var(--tag-border)'

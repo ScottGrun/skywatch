@@ -1,6 +1,7 @@
 import type * as THREE from 'three'
-import { radarFor } from '../core/radarSites'
-import { decodeRadar, fetchVolumeBytes, latestKey } from '../data/radar'
+import { radarsFor } from '../core/radarSites'
+import { decodeRadar, fetchVolumeBytes } from '../data/radar'
+import { latestKey } from '../data/radarList'
 import type { Airport, RadarStatus } from '../types'
 import { FT_TO_KM } from './constants'
 import type { RadarMesh } from './radarMesh'
@@ -41,23 +42,44 @@ export function createRadarControl(parent: THREE.Object3D) {
     key = ''
   }
 
+  /** Newest volume of each in-range site (nearest first); sites with no fresh data are dropped. */
+  async function fetchAll(ids: string[], signal: AbortSignal) {
+    const pin = pinnedKey()
+    const got = await Promise.all(
+      ids.map(async (id, i) => {
+        try {
+          const k = (i === 0 && pin) || (await latestKey(id, new Date(), fetch, signal))
+          return k || null
+        } catch {
+          return null
+        }
+      }),
+    )
+    return got.filter((g): g is string => !!g)
+  }
+
   async function load(): Promise<void> {
     const ap = airport
-    const site = ap && radarFor(ap)
-    if (!on || !ap || !site) return
+    const ids = ap ? radarsFor(ap).map((s) => s.id) : []
+    if (!on || !ap || !ids.length) return
     abort?.abort()
     const ctl = (abort = new AbortController())
     clearTimeout(timer)
     timer = window.setTimeout(() => void load(), REFRESH_MS)
     try {
-      const k = pinnedKey() ?? (await latestKey(site.id))
+      const found = await fetchAll(ids, ctl.signal)
       if (ctl.signal.aborted) return
-      if (!k) return emit({ state: 'error' })
+      if (!found.length) return emit({ state: 'error' })
+      const k = found.join(',')
       if (k === key && mesh) return emit({ state: 'ok' })
       if (!mesh) emit({ state: 'loading' })
-      const bytes = await fetchVolumeBytes(k, ctl.signal)
+      const bufs = (
+        await Promise.all(found.map((f) => fetchVolumeBytes(f, ctl.signal).catch(() => null)))
+      ).filter((b) => b !== null)
+      if (ctl.signal.aborted) return
+      if (!bufs.length) return emit({ state: 'error' })
       emit({ state: 'decoding' })
-      const res = await decodeRadar(bytes, ap)
+      const res = await decodeRadar(bufs, ap)
       if (ctl.signal.aborted) return
       if (!mesh) {
         const { createRadarMesh } = await import('./radarMesh')
@@ -73,7 +95,7 @@ export function createRadarControl(parent: THREE.Object3D) {
           `radar ${k}: decode ${res.decodeMs.toFixed(0)} ms, grid ${res.gridMs.toFixed(0)} ms`,
         )
       }
-      emit({ state: 'ok', site: res.site, timeMs: res.timeMs })
+      emit({ state: 'ok', site: res.sites.join('+'), timeMs: res.timeMs })
     } catch {
       if (!ctl.signal.aborted) emit({ state: 'error' })
     }
@@ -95,15 +117,15 @@ export function createRadarControl(parent: THREE.Object3D) {
     },
     setAirport(ap: Airport) {
       airport = ap
-      const site = radarFor(ap)
+      const ids = radarsFor(ap).map((s) => s.id)
       clear()
       emit({
-        available: !!site,
-        site: site?.id ?? '',
-        state: on && site ? 'loading' : 'off',
+        available: ids.length > 0,
+        site: ids.join('+'),
+        state: on && ids.length ? 'loading' : 'off',
         timeMs: 0,
       })
-      if (on && site) void load()
+      if (on && ids.length) void load()
     },
     subscribe(fn: (s: RadarStatus) => void) {
       fns.add(fn)

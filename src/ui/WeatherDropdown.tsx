@@ -19,7 +19,7 @@ const RAMP = `linear-gradient(90deg, ${Array.from({ length: 13 }, (_, i) => {
 function statusLine(on: boolean, r: RadarStatus): string {
   if (!r.available) return 'No radar in range'
   if (!on) return 'Off'
-  if (r.state === 'loading') return 'Loading volume…'
+  if (r.state === 'loading' || r.state === 'off') return 'Loading volume…'
   if (r.state === 'decoding') return 'Decoding…'
   if (r.state === 'error') return 'Radar unavailable'
   return 'OK'

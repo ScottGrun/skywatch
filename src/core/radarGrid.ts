@@ -117,3 +117,9 @@ export function buildGrid(vol: Volume, center: LatLon): Uint8Array {
   }
   return grid
 }
+
+/** Per-voxel max of two grids of the same size (overlapping radars); returns `a`, modified in place. */
+export function mergeMax(a: Uint8Array, b: Uint8Array): Uint8Array {
+  for (let i = 0; i < a.length; i++) if (b[i]! > a[i]!) a[i] = b[i]!
+  return a
+}

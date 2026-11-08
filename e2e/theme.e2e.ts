@@ -27,7 +27,10 @@ test('theme: toggle, persist, screenshots in both themes', async ({ page }) => {
   await page.waitForTimeout(6000)
   await page.screenshot({ path: `${SHOTS}/theme-light-selected.png` })
   await page.keyboard.press('Escape')
-  await page.locator('.details .x').click().catch(() => undefined)
+  await page
+    .locator('.details .x')
+    .click()
+    .catch(() => undefined)
   await page.waitForTimeout(1500)
   await page.getByRole('button', { name: 'OVERVIEW' }).click()
   await page.waitForTimeout(3000)

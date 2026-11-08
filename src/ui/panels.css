@@ -342,9 +342,19 @@
   display: grid;
   gap: 8px;
   padding: 6px 10px 8px;
+  box-sizing: border-box;
+  min-width: 0;
 }
 .wx-op {
   padding: 0;
+  gap: 10px;
+}
+.wx-op .label {
+  min-width: 0;
+  white-space: nowrap;
+}
+.wx-op input[type='range'] {
+  min-width: 0;
 }
 .wx-row {
   display: flex;
